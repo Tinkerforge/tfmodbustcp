@@ -1,0 +1,15 @@
+{
+    "name": "TFModbusTCP",
+    "version": "0.0.1",
+    "description": "TBD",
+    "includeDir": "src",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/Tinkerforge/tfmodbustcp"
+    },
+    "headers": "TFModbusTCP.h",
+    "license": "LGPL-2.1",
+    "frameworks": "*",
+    "platforms": "*"
+}

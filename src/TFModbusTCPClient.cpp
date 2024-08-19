@@ -288,10 +288,6 @@ void TFModbusTCPClient::connect(String host_name, uint16_t port, std::function<v
     this->host_name = host_name;
     this->port = port;
     event_callback = callback;
-    reconnect_deadline = 0;
-    reconnect_delay = 0;
-
-    reset_pending_response();
 }
 
 void TFModbusTCPClient::disconnect()
@@ -317,6 +313,8 @@ void TFModbusTCPClient::disconnect()
     event_callback = nullptr;
     reconnect_deadline = 0;
     reconnect_delay = 0;
+    resolve_pending = false;
+    pending_host_address = IPAddress();
 
     reset_pending_response();
     finish_all_transactions(TFModbusTCPClientResult::AbortedByDisconnect);
@@ -848,6 +846,16 @@ void TFModbusTCPClient::reset_pending_response()
 
 void TFModbusTCPClient::abort_connection(TFModbusTCPClientEvent event, int error_number)
 {
+    if (pending_socket_fd >= 0) {
+        close(pending_socket_fd);
+        pending_socket_fd = -1;
+    }
+
+    if (socket_fd >= 0) {
+        close(socket_fd);
+        socket_fd = -1;
+    }
+
     if (reconnect_delay == 0) {
         reconnect_delay = TF_MODBUS_TCP_CLIENT_MIN_RECONNECT_DELAY;
     }
@@ -862,16 +870,6 @@ void TFModbusTCPClient::abort_connection(TFModbusTCPClientEvent event, int error
     reconnect_deadline = calculate_deadline(reconnect_delay);
     resolve_pending = false;
     pending_host_address = IPAddress();
-
-    if (pending_socket_fd >= 0) {
-        close(pending_socket_fd);
-        pending_socket_fd = -1;
-    }
-
-    if (socket_fd >= 0) {
-        close(socket_fd);
-        socket_fd = -1;
-    }
 
     reset_pending_response();
     finish_all_transactions(TFModbusTCPClientResult::AbortedByOtherError);

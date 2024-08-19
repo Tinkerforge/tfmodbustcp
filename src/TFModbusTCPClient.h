@@ -36,8 +36,8 @@
 // configuration
 #define TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT 16
 #define TF_MODBUS_TCP_CLIENT_MAX_TICK_DURATION 10 // milliseconds
-#define TF_MODBUS_TCP_CLIENT_MIN_CONNECT_RETRY_DELAY 1000 // milliseconds
-#define TF_MODBUS_TCP_CLIENT_MAX_CONNECT_RETRY_DELAY 16000 // milliseconds
+#define TF_MODBUS_TCP_CLIENT_MIN_RECONNECT_DELAY 1000 // milliseconds
+#define TF_MODBUS_TCP_CLIENT_MAX_RECONNECT_DELAY 16000 // milliseconds
 #define TF_MODBUS_TCP_CLIENT_CONNECT_TIMEOUT 3000 // milliseconds
 #define TF_MODBUS_TCP_CLIENT_REQUEST_TIMEOUT 100 // milliseconds
 #define TF_MODBUS_TCP_CLIENT_RESPONSE_TIMEOUT 1000 // milliseconds
@@ -87,6 +87,10 @@ enum class TFModbusTCPClientConnectionStatus
 {
     InvalidArgument, // final
     ConcurrentConnect, // final
+    NoResolveCallback, // final
+    ResolveInProgress,
+    ResolveFailed, // errno as received from resolve callback
+    Resolved,
     SocketCreateFailed, // errno
     SocketGetFlagsFailed, // errno
     SocketSetFlagsFailed, // errno
@@ -151,20 +155,23 @@ union TFModbusTCPClientRegisterResponsePayload
     uint8_t bytes[TF_MODBUS_TCP_CLIENT_MAX_PAYLOAD_LENGTH];
 };
 
+void set_tf_modbus_tcp_client_resolve_callback(std::function<void(String host_name, std::function<void(IPAddress host_address, int error_number)> &&callback)> &&callback);
+
 class TFModbusTCPClient
 {
 public:
     TFModbusTCPClient() { memset(transactions, 0, sizeof(transactions)); }
 
-    void connect(IPAddress host, uint16_t port, std::function<void(TFModbusTCPClientConnectionStatus status, int error_number)> callback);
+    void connect(String host_name, uint16_t port, std::function<void(TFModbusTCPClientConnectionStatus status, int error_number)> &&callback);
     void disconnect();
+    bool is_connected() const { return socket_fd >= 0; }
     void tick();
     void read_register(TFModbusTCPClientRegisterType register_type,
                        uint8_t unit_id,
                        uint16_t start_address,
                        uint16_t register_count,
                        uint16_t *buffer,
-                       std::function<void(TFModbusTCPClientTransactionResult result)> callback);
+                       std::function<void(TFModbusTCPClientTransactionResult result)> &&callback);
 
 private:
     ssize_t receive_payload(size_t length);
@@ -176,13 +183,17 @@ private:
     void reset_pending_response();
     void abort_connection(TFModbusTCPClientConnectionStatus status, int error_number);
 
-    IPAddress host;
+    String host_name;
     uint16_t port = 0;
     std::function<void(TFModbusTCPClientConnectionStatus status, int error_number)> status_callback;
+    uint32_t reconnect_deadline = 0;
+    uint32_t reconnect_delay = 0;
+    bool resolve_pending = false;
+    uint32_t resolve_id = 0;
+    IPAddress pending_host_address;
     int pending_socket_fd = -1;
     uint32_t connect_id = 0;
-    uint32_t connect_start = 0;
-    uint32_t connect_retry_delay = 0;
+    uint32_t connect_timeout_deadline = 0;
     int socket_fd = -1;
     uint16_t next_transaction_id = 0;
     TFModbusTCPClientTransaction *transactions[TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT];

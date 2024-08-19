@@ -16,21 +16,21 @@ int main()
     });
 
     printf("%u | connect...\n", millis());
-    tfmbt.connect("foobar", 502, [&tfmbt, &tfmbt_buffer](TFModbusTCPClientConnectionStatus status, int error_number){
-        printf("%u | status: %s / %s (%d)\n",
+    tfmbt.connect("foobar", 502, [&tfmbt, &tfmbt_buffer](TFModbusTCPClientEvent event, int error_number) {
+        printf("%u | event: %s / %s (%d)\n",
                millis(),
-               get_tf_modbus_tcp_client_connection_status_name(status),
+               get_tf_modbus_tcp_client_event_name(event),
                strerror(error_number),
                error_number);
 
-        if (status == TFModbusTCPClientConnectionStatus::Connected) {
+        if (event == TFModbusTCPClientEvent::Connected) {
             printf("%u | read_register...\n", millis());
             tfmbt.read_register(TFModbusTCPClientRegisterType::InputRegister,
                                 1,
                                 1013,
                                 2,
                                 tfmbt_buffer,
-                                [&tfmbt_buffer](TFModbusTCPClientTransactionResult result){
+                                [&tfmbt_buffer](TFModbusTCPClientResult result) {
                                     union {
                                         float f;
                                         uint16_t r[2];
@@ -40,7 +40,7 @@ int main()
                                     c32.r[1] = tfmbt_buffer[1];
                                     printf("%u | read_register: %s (%d) [%u %u -> %f]\n",
                                            millis(),
-                                           get_tf_modbus_tcp_client_transaction_result_name(result),
+                                           get_tf_modbus_tcp_client_result_name(result),
                                            static_cast<int>(result),
                                            c32.r[0],
                                            c32.r[1],

@@ -48,7 +48,7 @@ enum class TFModbusTCPClientRegisterType
     InputRegister,
 };
 
-enum class TFModbusTCPClientTransactionResult
+enum class TFModbusTCPClientResult
 {
     Success = 0,
 
@@ -81,13 +81,13 @@ enum class TFModbusTCPClientTransactionResult
     ResponseTooShort,
 };
 
-const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTransactionResult result);
+const char *get_tf_modbus_tcp_client_result_name(TFModbusTCPClientResult result);
 
-enum class TFModbusTCPClientConnectionStatus
+enum class TFModbusTCPClientEvent
 {
     InvalidArgument, // final
-    ConcurrentConnect, // final
     NoResolveCallback, // final
+    NotDisconnected, // final
     ResolveInProgress,
     ResolveFailed, // errno as received from resolve callback
     Resolved,
@@ -109,7 +109,16 @@ enum class TFModbusTCPClientConnectionStatus
     ModbusProtocolError,
 };
 
-const char *get_tf_modbus_tcp_client_connection_status_name(TFModbusTCPClientConnectionStatus status);
+const char *get_tf_modbus_tcp_client_event_name(TFModbusTCPClientEvent event);
+
+enum class TFModbusTCPClientStatus
+{
+    Disconnected,
+    InProgress,
+    Connected,
+};
+
+const char *get_tf_modbus_tcp_client_status_name(TFModbusTCPClientStatus status);
 
 #if defined(__GNUC__)
     #pragma GCC diagnostic push
@@ -139,7 +148,7 @@ struct TFModbusTCPClientTransaction
     uint16_t register_count;
     uint16_t *buffer;
     uint32_t request_sent;
-    std::function<void(TFModbusTCPClientTransactionResult result)> callback;
+    std::function<void(TFModbusTCPClientResult result)> callback;
 };
 
 union TFModbusTCPClientRegisterResponsePayload
@@ -162,37 +171,36 @@ class TFModbusTCPClient
 public:
     TFModbusTCPClient() { memset(transactions, 0, sizeof(transactions)); }
 
-    void connect(String host_name, uint16_t port, std::function<void(TFModbusTCPClientConnectionStatus status, int error_number)> &&callback);
+    void connect(String host_name, uint16_t port, std::function<void(TFModbusTCPClientEvent event, int error_number)> &&callback);
     void disconnect();
-    bool is_connected() const { return socket_fd >= 0; }
+    TFModbusTCPClientStatus get_status() const;
     void tick();
     void read_register(TFModbusTCPClientRegisterType register_type,
                        uint8_t unit_id,
                        uint16_t start_address,
                        uint16_t register_count,
                        uint16_t *buffer,
-                       std::function<void(TFModbusTCPClientTransactionResult result)> &&callback);
+                       std::function<void(TFModbusTCPClientResult result)> &&callback);
 
 private:
     ssize_t receive_payload(size_t length);
     TFModbusTCPClientTransaction *take_transaction(uint16_t transaction_id);
-    void finish_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result);
-    void finish_transaction(TFModbusTCPClientTransaction *transaction, TFModbusTCPClientTransactionResult result);
-    void finish_all_transactions(TFModbusTCPClientTransactionResult result);
+    void finish_transaction(uint16_t transaction_id, TFModbusTCPClientResult result);
+    void finish_transaction(TFModbusTCPClientTransaction *transaction, TFModbusTCPClientResult result);
+    void finish_all_transactions(TFModbusTCPClientResult result);
     void check_transaction_timeout();
     void reset_pending_response();
-    void abort_connection(TFModbusTCPClientConnectionStatus status, int error_number);
+    void abort_connection(TFModbusTCPClientEvent event, int error_number);
 
     String host_name;
     uint16_t port = 0;
-    std::function<void(TFModbusTCPClientConnectionStatus status, int error_number)> status_callback;
+    std::function<void(TFModbusTCPClientEvent event, int error_number)> event_callback;
     uint32_t reconnect_deadline = 0;
     uint32_t reconnect_delay = 0;
     bool resolve_pending = false;
     uint32_t resolve_id = 0;
     IPAddress pending_host_address;
     int pending_socket_fd = -1;
-    uint32_t connect_id = 0;
     uint32_t connect_timeout_deadline = 0;
     int socket_fd = -1;
     uint16_t next_transaction_id = 0;

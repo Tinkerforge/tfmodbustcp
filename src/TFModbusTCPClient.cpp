@@ -363,11 +363,11 @@ void TFModbusTCPClient::tick()
         }
 
         if (result == 0) {
-            return; // connect() in progreess
+            return; // connect() in progress
         }
 
         if (!FD_ISSET(pending_socket_fd, &fdset)) {
-            return; // connect() in progreess
+            return; // connect() in progress
         }
 
         int socket_errno;

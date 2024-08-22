@@ -25,6 +25,7 @@ int main()
     uint16_t tfmbt_buffer[2] = {0, 0};
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
     uint32_t resolve_callback_time;
+    bool running = true;
 
     TFNetworkUtil::set_milliseconds_callback(milliseconds);
 
@@ -34,7 +35,7 @@ int main()
     });
 
     printf("%u | connect...\n", milliseconds());
-    tfmbt.connect("foobar", 502, [&tfmbt, &tfmbt_buffer](TFGenericTCPClientEvent event, int error_number) {
+    tfmbt.connect("foobar", 502, [&tfmbt, &tfmbt_buffer, &running](TFGenericTCPClientEvent event, int error_number) {
         printf("%u | event: %s / %s (%d)\n",
                milliseconds(),
                get_tf_generic_tcp_client_event_name(event),
@@ -48,7 +49,7 @@ int main()
                                 1013,
                                 2,
                                 tfmbt_buffer,
-                                [&tfmbt_buffer](TFModbusTCPClientResult result) {
+                                [&tfmbt, &tfmbt_buffer, &running](TFModbusTCPClientResult result) {
                                     union {
                                         float f;
                                         uint16_t r[2];
@@ -63,12 +64,14 @@ int main()
                                            c32.r[0],
                                            c32.r[1],
                                            static_cast<double>(c32.f));
+                                    tfmbt.disconnect();
+                                    running = false;
                                 });
         }
     });
 
-    while (true) {
-        if (resolve_callback && resolve_callback_time + 5000 < milliseconds()) {
+    while (running) {
+        if (resolve_callback && resolve_callback_time + 1000 < milliseconds()) {
             resolve_callback(IPAddress(10, 2, 80, 4), 0);
             resolve_callback = nullptr;
         }

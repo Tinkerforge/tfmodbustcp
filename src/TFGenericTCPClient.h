@@ -90,6 +90,7 @@ protected:
     char *host_name = nullptr;
     uint16_t port = 0;
     std::function<void(TFGenericTCPClientEvent event, int error_number)> event_callback;
+    uint32_t connect_id = 0;
     uint32_t reconnect_deadline = 0;
     uint32_t reconnect_delay = 0;
     bool resolve_pending = false;

@@ -147,6 +147,7 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port, std::func
     this->host_name = strdup(host_name);
     this->port = port;
     event_callback = callback;
+    ++connect_id;
 }
 
 void TFGenericTCPClient::disconnect()
@@ -178,7 +179,7 @@ void TFGenericTCPClient::disconnect()
     disconnect_hook();
 
     if (host_name != nullptr) {
-        return; // connect() was called from transaction callback
+        return; // connect() was called from disconnect hook
     }
 
     callback(TFGenericTCPClientEvent::Disconnected, 0);
@@ -240,10 +241,12 @@ void TFGenericTCPClient::tick()
                 return; // Waiting for resolve callback
             }
 
+            uint32_t current_connect_id = connect_id;
+
             event_callback(TFGenericTCPClientEvent::ConnectInProgress, 0);
 
-            if (host_name == nullptr) {
-                return; // disconnect() was called from the event callback
+            if (host_name == nullptr || current_connect_id != connect_id) {
+                return; // disconnect() / connect() was called from the event callback
             }
 
             pending_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -368,6 +371,13 @@ void TFGenericTCPClient::abort_connection(TFGenericTCPClientEvent event, int err
     resolve_pending = false;
     pending_host_address = 0;
 
+    uint32_t current_connect_id = connect_id;
+
     abort_connection_hook();
+
+    if (host_name == nullptr || current_connect_id != connect_id) {
+        return; // disconnect() / connect() was called from abort-connection hook
+    }
+
     event_callback(event, error_number);
 }

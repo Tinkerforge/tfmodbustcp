@@ -19,10 +19,7 @@
 
 #pragma once
 
-#include <Arduino.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <functional>
+#include "TFGenericTCPClient.h"
 
 // specification
 #define TF_MODBUS_TCP_CLIENT_HEADER_LENGTH 7
@@ -35,10 +32,6 @@
 
 // configuration
 #define TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT 16
-#define TF_MODBUS_TCP_CLIENT_MAX_TICK_DURATION 10 // milliseconds
-#define TF_MODBUS_TCP_CLIENT_MIN_RECONNECT_DELAY 1000 // milliseconds
-#define TF_MODBUS_TCP_CLIENT_MAX_RECONNECT_DELAY 16000 // milliseconds
-#define TF_MODBUS_TCP_CLIENT_CONNECT_TIMEOUT 3000 // milliseconds
 #define TF_MODBUS_TCP_CLIENT_REQUEST_TIMEOUT 100 // milliseconds
 #define TF_MODBUS_TCP_CLIENT_RESPONSE_TIMEOUT 1000 // milliseconds
 
@@ -82,43 +75,6 @@ enum class TFModbusTCPClientResult
 };
 
 const char *get_tf_modbus_tcp_client_result_name(TFModbusTCPClientResult result);
-
-enum class TFModbusTCPClientEvent
-{
-    InvalidArgument, // final
-    NoResolveCallback, // final
-    NotDisconnected, // final
-    ResolveInProgress,
-    ResolveFailed, // errno as received from resolve callback
-    Resolved,
-    SocketCreateFailed, // errno
-    SocketGetFlagsFailed, // errno
-    SocketSetFlagsFailed, // errno
-    SocketConnectFailed, // errno
-    SocketSelectFailed, // errno
-    SocketGetOptionFailed, // errno
-    SocketConnectAsyncFailed, // errno
-    SocketReceiveFailed, // errno
-    SocketIoctlFailed, // errno
-    SocketSendFailed, // errno
-    ConnectInProgress,
-    ConnectTimeout,
-    Connected,
-    Disconnected, // final
-    DisconnectedByPeer,
-    ModbusProtocolError,
-};
-
-const char *get_tf_modbus_tcp_client_event_name(TFModbusTCPClientEvent event);
-
-enum class TFModbusTCPClientStatus
-{
-    Disconnected,
-    InProgress,
-    Connected,
-};
-
-const char *get_tf_modbus_tcp_client_status_name(TFModbusTCPClientStatus status);
 
 #if defined(__GNUC__)
     #pragma GCC diagnostic push
@@ -164,17 +120,11 @@ union TFModbusTCPClientRegisterResponsePayload
     uint8_t bytes[TF_MODBUS_TCP_CLIENT_MAX_PAYLOAD_LENGTH];
 };
 
-void set_tf_modbus_tcp_client_resolve_callback(std::function<void(String host_name, std::function<void(IPAddress host_address, int error_number)> &&callback)> &&callback);
-
-class TFModbusTCPClient
+class TFModbusTCPClient final : public TFGenericTCPClient
 {
 public:
     TFModbusTCPClient() { memset(transactions, 0, sizeof(transactions)); }
 
-    void connect(String host_name, uint16_t port, std::function<void(TFModbusTCPClientEvent event, int error_number)> &&callback);
-    void disconnect();
-    TFModbusTCPClientStatus get_status() const;
-    void tick();
     void read_register(TFModbusTCPClientRegisterType register_type,
                        uint8_t unit_id,
                        uint16_t start_address,
@@ -183,6 +133,11 @@ public:
                        std::function<void(TFModbusTCPClientResult result)> &&callback);
 
 private:
+    void disconnect_hook() override;
+    void tick_hook() override;
+    bool receive_hook() override;
+    void abort_connection_hook() override;
+
     ssize_t receive_payload(size_t length);
     TFModbusTCPClientTransaction *take_transaction(uint16_t transaction_id);
     void finish_transaction(uint16_t transaction_id, TFModbusTCPClientResult result);
@@ -190,19 +145,7 @@ private:
     void finish_all_transactions(TFModbusTCPClientResult result);
     void check_transaction_timeout();
     void reset_pending_response();
-    void abort_connection(TFModbusTCPClientEvent event, int error_number);
 
-    String host_name;
-    uint16_t port = 0;
-    std::function<void(TFModbusTCPClientEvent event, int error_number)> event_callback;
-    uint32_t reconnect_deadline = 0;
-    uint32_t reconnect_delay = 0;
-    bool resolve_pending = false;
-    uint32_t resolve_id = 0;
-    IPAddress pending_host_address;
-    int pending_socket_fd = -1;
-    uint32_t connect_timeout_deadline = 0;
-    int socket_fd = -1;
     uint16_t next_transaction_id = 0;
     TFModbusTCPClientTransaction *transactions[TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT];
     TFModbusTCPClientHeader pending_header;

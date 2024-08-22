@@ -1,11 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <string.h>
 #include <sys/time.h>
-#include <string>
-
-typedef std::string String;
 
 class IPAddress
 {
@@ -48,18 +44,4 @@ public:
         uint32_t dword;
     };
 };
-
-inline uint32_t millis()
-{
-    struct timeval tv;
-    static uint32_t baseline_sec = 0;
-
-    gettimeofday(&tv, nullptr);
-
-    if (baseline_sec == 0) {
-        baseline_sec = tv.tv_sec;
-    }
-
-    return (tv.tv_sec - baseline_sec) * 1000 + tv.tv_usec / 1000;
-}
 

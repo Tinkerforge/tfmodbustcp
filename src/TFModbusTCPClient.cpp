@@ -388,7 +388,7 @@ bool TFModbusTCPClient::receive_hook()
         return true;
     }
 
-    if (pending_payload.function_code != (pending_payload.function_code & 0x7f)) {
+    if (transaction->function_code != (pending_payload.function_code & 0x7f)) {
         finish_transaction(transaction, TFModbusTCPClientResult::ResponseFunctionCodeMismatch);
         reset_pending_response();
         return true;

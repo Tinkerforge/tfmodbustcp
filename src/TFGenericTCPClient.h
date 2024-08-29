@@ -26,18 +26,16 @@
 
 // configuration
 #define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION 10 // milliseconds
-#define TF_GENERIC_TCP_CLIENT_MIN_RECONNECT_DELAY 1000 // milliseconds
-#define TF_GENERIC_TCP_CLIENT_MAX_RECONNECT_DELAY 16000 // milliseconds
 #define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT 3000 // milliseconds
 
-enum class TFGenericTCPClientEvent
+enum class TFGenericTCPClientConnectResult
 {
-    InvalidArgument, // final
-    NoResolveCallback, // final
-    NotDisconnected, // final
-    ResolveInProgress,
+    InvalidArgument,
+    NoFreePoolSlot,
+    NoFreePoolHandle,
+    NestedConnect,
+    AbortRequested,
     ResolveFailed, // errno as received from resolve callback
-    Resolved,
     SocketCreateFailed, // errno
     SocketGetFlagsFailed, // errno
     SocketSetFlagsFailed, // errno
@@ -45,58 +43,68 @@ enum class TFGenericTCPClientEvent
     SocketSelectFailed, // errno
     SocketGetOptionFailed, // errno
     SocketConnectAsyncFailed, // errno
+    Timeout,
+    Connected,
+};
+
+const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result);
+
+enum class TFGenericTCPClientDisconnectReason
+{
+    Requested,
+    SocketSelectFailed, // errno
     SocketReceiveFailed, // errno
     SocketIoctlFailed, // errno
     SocketSendFailed, // errno
-    ConnectInProgress,
-    ConnectTimeout,
-    Connected,
-    Disconnected, // final
     DisconnectedByPeer,
     ProtocolError,
 };
 
-const char *get_tf_generic_tcp_client_event_name(TFGenericTCPClientEvent event);
+const char *get_tf_generic_tcp_client_disconnect_reason_name(TFGenericTCPClientDisconnectReason reason);
 
-enum class TFGenericTCPClientStatus
+enum class TFGenericTCPClientConnectionStatus
 {
     Disconnected,
     InProgress,
     Connected,
 };
 
-const char *get_tf_generic_tcp_client_status_name(TFGenericTCPClientStatus status);
+const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientConnectionStatus status);
 
-void set_tf_generic_tcp_client_resolve_callback(std::function<void(const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback)> &&callback);
+typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number)> TFGenericTCPClientConnectCallback;
+typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number)> TFGenericTCPClientDisconnectCallback;
 
 class TFGenericTCPClient
 {
 public:
     TFGenericTCPClient() { }
 
-    void connect(const char *host_name, uint16_t port, std::function<void(TFGenericTCPClientEvent event, int error_number)> &&callback);
+    void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback, TFGenericTCPClientDisconnectCallback &&disconnect_callback);
     void disconnect();
-    TFGenericTCPClientStatus get_status() const;
+    const char *get_host_name() const { return host_name; }
+    uint16_t get_port() const { return port; }
+    TFGenericTCPClientConnectionStatus get_connection_status() const;
     void tick();
 
 protected:
-    virtual void disconnect_hook() = 0;
+    virtual void close_hook() = 0;
     virtual void tick_hook() = 0;
     virtual bool receive_hook() = 0;
-    virtual void abort_connection_hook() = 0;
 
-    void abort_connection(TFGenericTCPClientEvent event, int error_number);
+    void close();
+    void abort_connect(TFGenericTCPClientConnectResult result, int error_number);
+    void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 
     char *host_name = nullptr;
     uint16_t port = 0;
-    std::function<void(TFGenericTCPClientEvent event, int error_number)> event_callback;
+    TFGenericTCPClientConnectCallback connect_callback;
+    TFGenericTCPClientDisconnectCallback pending_disconnect_callback;
+    TFGenericTCPClientDisconnectCallback disconnect_callback;
     uint32_t connect_id = 0;
-    uint32_t reconnect_deadline = 0;
-    uint32_t reconnect_delay = 0;
     bool resolve_pending = false;
     uint32_t resolve_id = 0;
     uint32_t pending_host_address = 0; // IPv4 only
     int pending_socket_fd = -1;
-    uint32_t connect_timeout_deadline = 0;
+    uint32_t connect_deadline = 0;
     int socket_fd = -1;
 };

@@ -19,12 +19,21 @@
 
 #include "TFNetworkUtil.h"
 
+#include <errno.h>
+
 static uint32_t milliseconds_dummy()
 {
     return 0;
 }
 
-static std::function<uint32_t(void)> milliseconds_callback = milliseconds_dummy;
+static TFNetworkUtilMillisecondsCallback milliseconds_callback = milliseconds_dummy;
+
+static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
+{
+    callback(0, ENOSYS);
+}
+
+static TFNetworkUtilResolveCallback resolve_callback = resolve_dummy;
 
 static bool a_after_b(uint32_t a, uint32_t b)
 {
@@ -36,8 +45,7 @@ void TFNetworkUtil::set_milliseconds_callback(std::function<uint32_t(void)> &&ca
     if (callback) {
         milliseconds_callback = callback;
     }
-    else
-    {
+    else {
         milliseconds_callback = milliseconds_dummy;
     }
 }
@@ -61,4 +69,19 @@ uint32_t TFNetworkUtil::calculate_deadline(uint32_t delay)
     }
 
     return deadline;
+}
+
+void TFNetworkUtil::set_resolve_callback(TFNetworkUtilResolveCallback &&callback)
+{
+    if (callback) {
+        resolve_callback = callback;
+    }
+    else {
+        resolve_callback = resolve_dummy;
+    }
+}
+
+void TFNetworkUtil::resolve(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
+{
+    resolve_callback(host_name, std::forward<TFNetworkUtilResolveResultCallback>(callback));
 }

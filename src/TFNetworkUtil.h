@@ -22,11 +22,19 @@
 #include <stdint.h>
 #include <functional>
 
+typedef std::function<uint32_t(void)> TFNetworkUtilMillisecondsCallback;
+typedef std::function<void(uint32_t host_address, int error_number)> TFNetworkUtilResolveResultCallback;
+typedef std::function<void(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveCallback;
+
 class TFNetworkUtil
 {
 public:
-    static void set_milliseconds_callback(std::function<uint32_t(void)> &&callback);
+    static void set_milliseconds_callback(TFNetworkUtilMillisecondsCallback &&callback);
     static uint32_t milliseconds();
+
     static bool deadline_elapsed(uint32_t deadline);
     static uint32_t calculate_deadline(uint32_t delay);
+
+    static void set_resolve_callback(TFNetworkUtilResolveCallback &&callback);
+    static void resolve(const char *host_name, TFNetworkUtilResolveResultCallback &&callback);
 };

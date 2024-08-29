@@ -26,176 +26,153 @@
 
 #include "TFNetworkUtil.h"
 
-static_assert(TF_GENERIC_TCP_CLIENT_MIN_RECONNECT_DELAY > 0, "TF_GENERIC_TCP_CLIENT_MIN_RECONNECT_DELAY must be positive");
-static_assert(TF_GENERIC_TCP_CLIENT_MIN_RECONNECT_DELAY <= TF_GENERIC_TCP_CLIENT_MAX_RECONNECT_DELAY, "TF_GENERIC_TCP_CLIENT_MIN_RECONNECT_DELAY must not be bigger than TF_GENERIC_TCP_CLIENT_MAX_RECONNECT_DELAY");
-
-static std::function<void(const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback)> resolve_callback;
-
-const char *get_tf_generic_tcp_client_event_name(TFGenericTCPClientEvent event)
+const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result)
 {
-    switch (event) {
-    case TFGenericTCPClientEvent::InvalidArgument:
+    switch (result) {
+    case TFGenericTCPClientConnectResult::InvalidArgument:
         return "InvalidArgument";
 
-    case TFGenericTCPClientEvent::NoResolveCallback:
-        return "NoResolveCallback";
+    case TFGenericTCPClientConnectResult::NoFreePoolSlot:
+        return "NoFreePoolSlot";
 
-    case TFGenericTCPClientEvent::NotDisconnected:
-        return "NotDisconnected";
+    case TFGenericTCPClientConnectResult::NoFreePoolHandle:
+        return "NoFreePoolHandle";
 
-    case TFGenericTCPClientEvent::ResolveInProgress:
-        return "ResolveInProgress";
+    case TFGenericTCPClientConnectResult::NestedConnect:
+        return "NestedConnect";
 
-    case TFGenericTCPClientEvent::ResolveFailed:
+    case TFGenericTCPClientConnectResult::AbortRequested:
+        return "AbortRequested";
+
+    case TFGenericTCPClientConnectResult::ResolveFailed:
         return "ResolveFailed";
 
-    case TFGenericTCPClientEvent::Resolved:
-        return "Resolved";
-
-    case TFGenericTCPClientEvent::SocketCreateFailed:
+    case TFGenericTCPClientConnectResult::SocketCreateFailed:
         return "SocketCreateFailed";
 
-    case TFGenericTCPClientEvent::SocketGetFlagsFailed:
+    case TFGenericTCPClientConnectResult::SocketGetFlagsFailed:
         return "SocketGetFlagsFailed";
 
-    case TFGenericTCPClientEvent::SocketSetFlagsFailed:
+    case TFGenericTCPClientConnectResult::SocketSetFlagsFailed:
         return "SocketSetFlagsFailed";
 
-    case TFGenericTCPClientEvent::SocketConnectFailed:
+    case TFGenericTCPClientConnectResult::SocketConnectFailed:
         return "SocketConnectFailed";
 
-    case TFGenericTCPClientEvent::SocketSelectFailed:
+    case TFGenericTCPClientConnectResult::SocketSelectFailed:
         return "SocketSelectFailed";
 
-    case TFGenericTCPClientEvent::SocketGetOptionFailed:
+    case TFGenericTCPClientConnectResult::SocketGetOptionFailed:
         return "SocketGetOptionFailed";
 
-    case TFGenericTCPClientEvent::SocketConnectAsyncFailed:
+    case TFGenericTCPClientConnectResult::SocketConnectAsyncFailed:
         return "SocketConnectAsyncFailed";
 
-    case TFGenericTCPClientEvent::SocketReceiveFailed:
+    case TFGenericTCPClientConnectResult::Timeout:
+        return "Timeout";
+
+    case TFGenericTCPClientConnectResult::Connected:
+        return "Connected";
+    }
+
+    return "Unknown";
+}
+
+const char *get_tf_generic_tcp_client_disconnect_reason_name(TFGenericTCPClientDisconnectReason reason)
+{
+    switch (reason) {
+    case TFGenericTCPClientDisconnectReason::Requested:
+        return "Requested";
+
+    case TFGenericTCPClientDisconnectReason::SocketSelectFailed:
+        return "SocketSelectFailed";
+
+    case TFGenericTCPClientDisconnectReason::SocketReceiveFailed:
         return "SocketReceiveFailed";
 
-    case TFGenericTCPClientEvent::SocketIoctlFailed:
+    case TFGenericTCPClientDisconnectReason::SocketIoctlFailed:
         return "SocketIoctlFailed";
 
-    case TFGenericTCPClientEvent::SocketSendFailed:
+    case TFGenericTCPClientDisconnectReason::SocketSendFailed:
         return "SocketSendFailed";
 
-    case TFGenericTCPClientEvent::ConnectInProgress:
-        return "ConnectInProgress";
-
-    case TFGenericTCPClientEvent::ConnectTimeout:
-        return "ConnectTimeout";
-
-    case TFGenericTCPClientEvent::Connected:
-        return "Connected";
-
-    case TFGenericTCPClientEvent::Disconnected:
-        return "Disconnected";
-
-    case TFGenericTCPClientEvent::DisconnectedByPeer:
+    case TFGenericTCPClientDisconnectReason::DisconnectedByPeer:
         return "DisconnectedByPeer";
 
-    case TFGenericTCPClientEvent::ProtocolError:
+    case TFGenericTCPClientDisconnectReason::ProtocolError:
         return "ProtocolError";
     }
 
     return "Unknown";
 }
 
-const char *get_tf_generic_tcp_client_status_name(TFGenericTCPClientStatus status)
+const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientConnectionStatus status)
 {
     switch (status) {
-    case TFGenericTCPClientStatus::Disconnected:
+    case TFGenericTCPClientConnectionStatus::Disconnected:
         return "Disconnected";
 
-    case TFGenericTCPClientStatus::InProgress:
+    case TFGenericTCPClientConnectionStatus::InProgress:
         return "InProgress";
 
-    case TFGenericTCPClientStatus::Connected:
+    case TFGenericTCPClientConnectionStatus::Connected:
         return "Connected";
     }
 
     return "Unknown";
 }
 
-void set_tf_generic_tcp_client_resolve_callback(std::function<void(const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback)> &&callback)
+void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
+                                 TFGenericTCPClientConnectCallback &&connect_callback,
+                                 TFGenericTCPClientDisconnectCallback &&disconnect_callback)
 {
-    if (callback) {
-        resolve_callback = callback;
-    }
-}
-
-void TFGenericTCPClient::connect(const char *host_name, uint16_t port, std::function<void(TFGenericTCPClientEvent event, int error_number)> &&callback)
-{
-    if (host_name == nullptr || strlen(host_name) == 0 || port == 0) {
-        callback(TFGenericTCPClientEvent::InvalidArgument, 0);
+    if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
+        connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1);
         return;
     }
 
-    if (!resolve_callback) {
-        callback(TFGenericTCPClientEvent::NoResolveCallback, 0);
-        return;
-    }
+    uint32_t current_connect_id = ++connect_id;
 
-    if (this->host_name != nullptr) {
-        callback(TFGenericTCPClientEvent::NotDisconnected, 0);
+    disconnect();
+
+    if (current_connect_id != connect_id) {
+        connect_callback(TFGenericTCPClientConnectResult::NestedConnect, -1);
         return;
     }
 
     this->host_name = strdup(host_name);
     this->port = port;
-    event_callback = callback;
-    ++connect_id;
+    this->connect_callback = connect_callback;
+    this->pending_disconnect_callback = disconnect_callback;
 }
 
 void TFGenericTCPClient::disconnect()
 {
-    if (host_name == nullptr) {
-        return;
+    TFGenericTCPClientConnectCallback connect_callback = std::move(this->connect_callback);
+    TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);
+
+    close();
+
+    if (connect_callback) {
+        connect_callback(TFGenericTCPClientConnectResult::AbortRequested, -1);
     }
 
-    if (pending_socket_fd >= 0) {
-        close(pending_socket_fd);
-        pending_socket_fd = -1;
+    if (disconnect_callback) {
+        disconnect_callback(TFGenericTCPClientDisconnectReason::Requested, -1);
     }
-
-    if (socket_fd >= 0) {
-        close(socket_fd);
-        socket_fd = -1;
-    }
-
-    std::function<void(TFGenericTCPClientEvent event, int error_number)> callback = std::move(event_callback);
-
-    free(host_name); host_name = nullptr;
-    port = 0;
-    event_callback = nullptr;
-    reconnect_deadline = 0;
-    reconnect_delay = 0;
-    resolve_pending = false;
-    pending_host_address = 0;
-
-    disconnect_hook();
-
-    if (host_name != nullptr) {
-        return; // connect() was called from disconnect hook
-    }
-
-    callback(TFGenericTCPClientEvent::Disconnected, 0);
 }
 
-TFGenericTCPClientStatus TFGenericTCPClient::get_status() const
+TFGenericTCPClientConnectionStatus TFGenericTCPClient::get_connection_status() const
 {
     if (socket_fd >= 0) {
-        return TFGenericTCPClientStatus::Connected;
+        return TFGenericTCPClientConnectionStatus::Connected;
     }
 
     if (host_name != nullptr) {
-        return TFGenericTCPClientStatus::InProgress;
+        return TFGenericTCPClientConnectionStatus::InProgress;
     }
 
-    return TFGenericTCPClientStatus::Disconnected;
+    return TFGenericTCPClientConnectionStatus::Disconnected;
 }
 
 void TFGenericTCPClient::tick()
@@ -203,36 +180,22 @@ void TFGenericTCPClient::tick()
     tick_hook();
 
     if (host_name != nullptr && socket_fd < 0) {
-        if (reconnect_deadline != 0 && !TFNetworkUtil::deadline_elapsed(reconnect_deadline)) {
-            return;
-        }
-
-        reconnect_deadline = 0;
-
         if (!resolve_pending && pending_host_address == 0 && pending_socket_fd < 0) {
-            event_callback(TFGenericTCPClientEvent::ResolveInProgress, 0);
-
-            if (host_name == nullptr) {
-                return; // disconnect() was called from the event callback
-            }
-
             resolve_pending = true;
             uint32_t current_resolve_id = ++resolve_id;
 
-            resolve_callback(host_name, [this, current_resolve_id](uint32_t host_address, int error_number) {
+            TFNetworkUtil::resolve(host_name, [this, current_resolve_id](uint32_t host_address, int error_number) {
                 if (!resolve_pending || current_resolve_id != resolve_id) {
                     return;
                 }
 
                 if (host_address == 0) {
-                    abort_connection(TFGenericTCPClientEvent::ResolveFailed, error_number);
+                    abort_connect(TFGenericTCPClientConnectResult::ResolveFailed, error_number);
                     return;
                 }
 
                 resolve_pending = false;
                 pending_host_address = host_address;
-
-                event_callback(TFGenericTCPClientEvent::Resolved, 0);
             });
         }
 
@@ -241,30 +204,22 @@ void TFGenericTCPClient::tick()
                 return; // Waiting for resolve callback
             }
 
-            uint32_t current_connect_id = connect_id;
-
-            event_callback(TFGenericTCPClientEvent::ConnectInProgress, 0);
-
-            if (host_name == nullptr || current_connect_id != connect_id) {
-                return; // disconnect() / connect() was called from the event callback
-            }
-
             pending_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
             if (pending_socket_fd < 0) {
-                abort_connection(TFGenericTCPClientEvent::SocketCreateFailed, errno);
+                abort_connect(TFGenericTCPClientConnectResult::SocketCreateFailed, errno);
                 return;
             }
 
             int flags = fcntl(pending_socket_fd, F_GETFL, 0);
 
             if (flags < 0) {
-                abort_connection(TFGenericTCPClientEvent::SocketGetFlagsFailed, errno);
+                abort_connect(TFGenericTCPClientConnectResult::SocketGetFlagsFailed, errno);
                 return;
             }
 
             if (fcntl(pending_socket_fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-                abort_connection(TFGenericTCPClientEvent::SocketSetFlagsFailed, errno);
+                abort_connect(TFGenericTCPClientConnectResult::SocketSetFlagsFailed, errno);
                 return;
             }
 
@@ -278,15 +233,15 @@ void TFGenericTCPClient::tick()
             pending_host_address = 0;
 
             if (::connect(pending_socket_fd, (struct sockaddr *)&addr_in, sizeof(addr_in)) < 0 && errno != EINPROGRESS) {
-                abort_connection(TFGenericTCPClientEvent::SocketConnectFailed, errno);
+                abort_connect(TFGenericTCPClientConnectResult::SocketConnectFailed, errno);
                 return;
             }
 
-            connect_timeout_deadline = TFNetworkUtil::calculate_deadline(TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT);
+            connect_deadline = TFNetworkUtil::calculate_deadline(TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT);
         }
 
-        if (TFNetworkUtil::deadline_elapsed(connect_timeout_deadline)) {
-            abort_connection(TFGenericTCPClientEvent::ConnectTimeout, 0);
+        if (TFNetworkUtil::deadline_elapsed(connect_deadline)) {
+            abort_connect(TFGenericTCPClientConnectResult::Timeout, -1);
             return;
         }
 
@@ -301,7 +256,7 @@ void TFGenericTCPClient::tick()
         int result = select(pending_socket_fd + 1, nullptr, &fdset, nullptr, &tv);
 
         if (result < 0) {
-            abort_connection(TFGenericTCPClientEvent::SocketSelectFailed, errno);
+            abort_connect(TFGenericTCPClientConnectResult::SocketSelectFailed, errno);
             return;
         }
 
@@ -317,19 +272,24 @@ void TFGenericTCPClient::tick()
         socklen_t socket_errno_length = (socklen_t)sizeof(socket_errno);
 
         if (getsockopt(pending_socket_fd, SOL_SOCKET, SO_ERROR, &socket_errno, &socket_errno_length) < 0) {
-            abort_connection(TFGenericTCPClientEvent::SocketGetOptionFailed, errno);
+            abort_connect(TFGenericTCPClientConnectResult::SocketGetOptionFailed, errno);
             return;
         }
 
         if (socket_errno != 0) {
-            abort_connection(TFGenericTCPClientEvent::SocketConnectAsyncFailed, socket_errno);
+            abort_connect(TFGenericTCPClientConnectResult::SocketConnectAsyncFailed, socket_errno);
             return;
         }
 
-        reconnect_delay = 0;
+        TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
+
         socket_fd = pending_socket_fd;
         pending_socket_fd = -1;
-        event_callback(TFGenericTCPClientEvent::Connected, 0);
+        connect_callback = nullptr;
+        disconnect_callback = std::move(pending_disconnect_callback);
+        pending_disconnect_callback = nullptr;
+
+        callback(TFGenericTCPClientConnectResult::Connected, -1);
     }
 
     uint32_t tick_deadline = TFNetworkUtil::calculate_deadline(TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION);
@@ -344,40 +304,47 @@ void TFGenericTCPClient::tick()
     }
 }
 
-void TFGenericTCPClient::abort_connection(TFGenericTCPClientEvent event, int error_number)
+void TFGenericTCPClient::close()
 {
     if (pending_socket_fd >= 0) {
-        close(pending_socket_fd);
+        ::close(pending_socket_fd);
         pending_socket_fd = -1;
     }
 
     if (socket_fd >= 0) {
-        close(socket_fd);
+        ::close(socket_fd);
         socket_fd = -1;
     }
 
-    if (reconnect_delay == 0) {
-        reconnect_delay = TF_GENERIC_TCP_CLIENT_MIN_RECONNECT_DELAY;
-    }
-    else {
-        reconnect_delay *= 2;
-
-        if (reconnect_delay > TF_GENERIC_TCP_CLIENT_MAX_RECONNECT_DELAY) {
-            reconnect_delay = TF_GENERIC_TCP_CLIENT_MAX_RECONNECT_DELAY;
-        }
-    }
-
-    reconnect_deadline = TFNetworkUtil::calculate_deadline(reconnect_delay);
+    free(host_name); host_name = nullptr;
+    port = 0;
+    connect_callback = nullptr;
+    pending_disconnect_callback = nullptr;
+    disconnect_callback = nullptr;
     resolve_pending = false;
     pending_host_address = 0;
 
-    uint32_t current_connect_id = connect_id;
+    close_hook();
+}
 
-    abort_connection_hook();
+void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, int error_number)
+{
+    TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
 
-    if (host_name == nullptr || current_connect_id != connect_id) {
-        return; // disconnect() / connect() was called from abort-connection hook
+    close();
+
+    if (callback) {
+        callback(result, error_number);
     }
+}
 
-    event_callback(event, error_number);
+void TFGenericTCPClient::disconnect(TFGenericTCPClientDisconnectReason reason, int error_number)
+{
+    TFGenericTCPClientDisconnectCallback callback = std::move(disconnect_callback);
+
+    close();
+
+    if (callback) {
+        callback(reason, error_number);
+    }
 }

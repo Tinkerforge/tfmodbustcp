@@ -327,6 +327,30 @@ void TFGenericTCPClient::close()
     close_hook();
 }
 
+bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
+{
+    size_t buffer_send = 0;
+    size_t tries_remaining = TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES;
+
+    while (tries_remaining > 0 && buffer_send < length) {
+        --tries_remaining;
+
+        ssize_t result = ::send(socket_fd, buffer + buffer_send, length - buffer_send, 0);
+
+        if (result < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            }
+
+            return false;
+        }
+
+        buffer_send += result;
+    }
+
+    return true;
+}
+
 void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, int error_number)
 {
     TFGenericTCPClientConnectCallback callback = std::move(connect_callback);

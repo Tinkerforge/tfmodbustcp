@@ -207,27 +207,11 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
     memcpy(request, header.bytes, sizeof(header));
     memcpy(request + sizeof(header), payload.bytes, sizeof(payload));
 
-    size_t request_length = sizeof(header) + sizeof(payload);
-    size_t request_send = 0;
-    size_t tries_remaining = TF_MODBUS_TCP_CLIENT_MAX_SEND_TRIES;
-
-    while (tries_remaining > 0 && request_send < request_length) {
-        --tries_remaining;
-
-        ssize_t result = send(socket_fd, request + request_send, request_length - request_send, 0);
-
-        if (result < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                continue;
-            }
-
-            int saved_errno = errno;
-            callback(TFModbusTCPClientTransactionResult::SendFailed);
-            disconnect(TFGenericTCPClientDisconnectReason::SocketSendFailed, saved_errno);
-            return;
-        }
-
-        request_send += result;
+    if (!send(request, sizeof(header) + sizeof(payload))) {
+        int saved_errno = errno;
+        callback(TFModbusTCPClientTransactionResult::SendFailed);
+        disconnect(TFGenericTCPClientDisconnectReason::SocketSendFailed, saved_errno);
+        return;
     }
 
     TFModbusTCPClientTransaction *transaction = new TFModbusTCPClientTransaction;

@@ -32,7 +32,6 @@
 
 // configuration
 #define TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT 8
-#define TF_MODBUS_TCP_CLIENT_MAX_SEND_TRIES 10
 #define TF_MODBUS_TCP_CLIENT_TRANSACTION_TIMEOUT 1000 // milliseconds
 
 enum class TFModbusTCPClientRegisterType

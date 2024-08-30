@@ -27,6 +27,7 @@
 // configuration
 #define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION 10 // milliseconds
 #define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT 3000 // milliseconds
+#define TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES 10
 
 enum class TFGenericTCPClientConnectResult
 {
@@ -93,6 +94,7 @@ protected:
     virtual bool receive_hook() = 0;
 
     void close();
+    bool send(const uint8_t *buffer, size_t length);
     void abort_connect(TFGenericTCPClientConnectResult result, int error_number);
     void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 

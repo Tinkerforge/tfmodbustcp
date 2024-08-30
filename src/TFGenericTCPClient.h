@@ -79,7 +79,7 @@ class TFGenericTCPClient
 {
 public:
     TFGenericTCPClient() {}
-    virtual ~TFGenericTCPClient() {}
+    virtual ~TFGenericTCPClient() = default;
 
     void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback, TFGenericTCPClientDisconnectCallback &&disconnect_callback);
     void disconnect();

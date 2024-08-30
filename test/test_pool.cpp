@@ -29,8 +29,8 @@ int main()
     uint32_t resolve_callback_time;
     int running = 2;
     TFModbusTCPClientPool pool;
-    TFModbusTCPClientPoolHandle *handle_ptr1 = nullptr;
-    TFModbusTCPClientPoolHandle *handle_ptr2 = nullptr;
+    TFGenericTCPClientPoolHandle *handle_ptr1 = nullptr;
+    TFGenericTCPClientPoolHandle *handle_ptr2 = nullptr;
 
     TFNetworkUtil::set_milliseconds_callback(milliseconds);
 
@@ -41,7 +41,7 @@ int main()
 
     printf("%u | acquire1...\n", milliseconds());
     pool.acquire("foobar", 502,
-    [&pool, &handle_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFModbusTCPClientPoolHandle *handle) {
+    [&pool, &handle_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%u | connect1 handle=%p: %s / %s (%d)\n",
                milliseconds(),
                handle,
@@ -87,7 +87,7 @@ int main()
                             });
 #endif
     },
-    [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFModbusTCPClientPoolHandle *handle) {
+    [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%u | disconnect1 handle=%p: %s / %s (%d)\n",
                milliseconds(),
                handle,
@@ -100,7 +100,7 @@ int main()
 
     printf("%u | acquire2...\n", milliseconds());
     pool.acquire("foobar", 502,
-    [&pool, &handle_ptr2, &buffer2, &running](TFGenericTCPClientConnectResult result, int error_number, TFModbusTCPClientPoolHandle *handle) {
+    [&pool, &handle_ptr2, &buffer2, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%u | connect2 handle=%p: %s / %s (%d)\n",
                milliseconds(),
                handle,
@@ -116,7 +116,7 @@ int main()
         }
 
         printf("%u | read_register2... handle=%p\n", milliseconds(), handle);
-        handle->client->read_register(TFModbusTCPClientRegisterType::InputRegister,
+        static_cast<TFModbusTCPClient *>(handle->client)->read_register(TFModbusTCPClientRegisterType::InputRegister,
                                 1,
                                 1013,
                                 2,
@@ -142,7 +142,7 @@ int main()
                                 pool.release(handle);
                             });
     },
-    [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFModbusTCPClientPoolHandle *handle) {
+    [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%u | disconnect2 handle=%p: %s / %s (%d)\n",
                milliseconds(),
                handle,

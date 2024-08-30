@@ -19,48 +19,13 @@
 
 #pragma once
 
-#include <vector>
+#include "TFGenericTCPClientPool.h"
 
-#include "TFModbusTCPClient.h"
-
-#define TF_MODBUS_TCP_CLIENT_POOL_MAX_HANDLE_COUNT 8
-#define TF_MODBUS_TCP_CLIENT_POOL_MAX_SLOT_COUNT 8
-
-struct TFModbusTCPClientPoolHandle;
-
-typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number, TFModbusTCPClientPoolHandle *handle)> TFGenericTCPClientPoolConnectCallback;
-typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number, TFModbusTCPClientPoolHandle *handle)> TFGenericTCPClientPoolDisconnectCallback;
-
-struct TFModbusTCPClientPoolHandle
-{
-    bool pending_release = false;
-    TFModbusTCPClient *client;
-    TFGenericTCPClientPoolConnectCallback connect_callback;
-    TFGenericTCPClientPoolDisconnectCallback pending_disconnect_callback;
-    TFGenericTCPClientPoolDisconnectCallback disconnect_callback;
-};
-
-struct TFModbusTCPClientPoolSlot
-{
-    TFModbusTCPClientPoolSlot() { memset(handles, 0, sizeof(handles)); }
-
-    uint32_t id;
-    TFModbusTCPClient client;
-    TFModbusTCPClientPoolHandle *handles[TF_MODBUS_TCP_CLIENT_POOL_MAX_HANDLE_COUNT];
-};
-
-class TFModbusTCPClientPool
+class TFModbusTCPClientPool : public TFGenericTCPClientPool
 {
 public:
-    TFModbusTCPClientPool() { memset(slots, 0, sizeof(slots)); }
+    TFModbusTCPClientPool() {}
 
-    void acquire(const char *host_name, uint16_t port,
-                 TFGenericTCPClientPoolConnectCallback &&connect_callback,
-                 TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback);
-    void release(TFModbusTCPClientPoolHandle *handle);
-    void tick();
-
-private:
-    uint32_t next_slot_id = 0;
-    TFModbusTCPClientPoolSlot *slots[TF_MODBUS_TCP_CLIENT_POOL_MAX_SLOT_COUNT];
+protected:
+    TFGenericTCPClient *new_client() override;
 };

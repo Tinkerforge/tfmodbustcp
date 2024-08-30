@@ -77,7 +77,8 @@ typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_
 class TFGenericTCPClient
 {
 public:
-    TFGenericTCPClient() { }
+    TFGenericTCPClient() {}
+    virtual ~TFGenericTCPClient() {}
 
     void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback, TFGenericTCPClientDisconnectCallback &&disconnect_callback);
     void disconnect();

@@ -184,7 +184,13 @@ void TFGenericTCPClient::tick()
             resolve_pending = true;
             uint32_t current_resolve_id = ++resolve_id;
 
+            tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() resolving (host_name=%s current_resolve_id=%u)",
+                                     (void *)this, host_name, current_resolve_id);
+
             TFNetworkUtil::resolve(host_name, [this, current_resolve_id](uint32_t host_address, int error_number) {
+                tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() resolved (resolve_pending=%d current_resolve_id=%u resolve_id=%u host_address=%u error_number=%d)",
+                                         (void *)this, (int)resolve_pending, current_resolve_id, resolve_id, host_address, error_number);
+
                 if (!resolve_pending || current_resolve_id != resolve_id) {
                     return;
                 }
@@ -203,6 +209,9 @@ void TFGenericTCPClient::tick()
             if (pending_host_address == 0) {
                 return; // Waiting for resolve callback
             }
+
+            tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() connecting (host_name=%s pending_host_address=%u)",
+                                     (void *)this, host_name, pending_host_address);
 
             pending_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 

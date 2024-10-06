@@ -31,7 +31,7 @@
 #define TF_MODBUS_TCP_CLIENT_MAX_REGISTER_COUNT 125
 
 // configuration
-#define TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT 8
+#define TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT 8
 
 enum class TFModbusTCPClientRegisterType
 {
@@ -55,7 +55,7 @@ enum class TFModbusTCPClientTransactionResult
 
     InvalidArgument = 256,
     Aborted,
-    NoFreeTransaction,
+    NoTransactionAvailable,
     NotConnected,
     DisconnectedByPeer,
     SendFailed,
@@ -96,13 +96,14 @@ typedef std::function<void(TFModbusTCPClientTransactionResult result)> TFModbusT
 
 struct TFModbusTCPClientTransaction
 {
-    uint16_t transaction_id;
-    uint8_t unit_id;
     uint8_t function_code;
+    uint8_t unit_id;
+    uint16_t start_address;
     uint16_t register_count;
     uint16_t *buffer;
-    uint32_t deadline; // milliseconds
+    uint32_t timeout; // milliseconds
     TFModbusTCPClientTransactionCallback callback;
+    TFModbusTCPClientTransaction *next;
 };
 
 union TFModbusTCPClientRegisterResponsePayload
@@ -121,7 +122,7 @@ union TFModbusTCPClientRegisterResponsePayload
 class TFModbusTCPClient final : public TFGenericTCPClient
 {
 public:
-    TFModbusTCPClient() { memset(transactions, 0, sizeof(transactions)); }
+    TFModbusTCPClient() = default;
 
     void read_register(TFModbusTCPClientRegisterType register_type,
                        uint8_t unit_id,
@@ -137,15 +138,17 @@ private:
     bool receive_hook() override;
 
     ssize_t receive_payload(size_t length);
-    TFModbusTCPClientTransaction *take_transaction(uint16_t transaction_id);
-    void finish_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result);
-    void finish_transaction(TFModbusTCPClientTransaction *transaction, TFModbusTCPClientTransactionResult result);
+    void finish_pending_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result);
+    void finish_pending_transaction(TFModbusTCPClientTransactionResult result);
     void finish_all_transactions(TFModbusTCPClientTransactionResult result);
-    void check_transaction_timeout();
+    void check_pending_transaction_timeout();
     void reset_pending_response();
 
     uint16_t next_transaction_id = 0;
-    TFModbusTCPClientTransaction *transactions[TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT];
+    TFModbusTCPClientTransaction *pending_transaction = nullptr;
+    uint16_t pending_transaction_id = 0;
+    uint32_t pending_transaction_deadline = 0; // milliseconds
+    TFModbusTCPClientTransaction *scheduled_transaction_head = nullptr;
     TFModbusTCPClientHeader pending_header;
     size_t pending_header_used = 0;
     bool pending_header_checked = false;

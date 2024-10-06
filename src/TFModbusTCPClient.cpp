@@ -99,8 +99,8 @@ const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTr
     case TFModbusTCPClientTransactionResult::Aborted:
         return "Aborted";
 
-    case TFModbusTCPClientTransactionResult::NoFreeTransaction:
-        return "NoFreeTransaction";
+    case TFModbusTCPClientTransactionResult::NoTransactionAvailable:
+        return "NoTransactionAvailable";
 
     case TFModbusTCPClientTransactionResult::NotConnected:
         return "NotConnected";
@@ -176,56 +176,31 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
         return;
     }
 
-    ssize_t transaction_index = -1;
+    TFModbusTCPClientTransaction **tail_ptr = &scheduled_transaction_head;
+    size_t count = 0;
 
-    for (ssize_t i = 0; i < TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT; ++i) {
-        if (transactions[i] == nullptr) {
-            transaction_index = i;
-            break;
-        }
+    while (*tail_ptr != nullptr) {
+        tail_ptr = &(*tail_ptr)->next;
+        ++count;
     }
 
-    if (transaction_index < 0) {
-        callback(TFModbusTCPClientTransactionResult::NoFreeTransaction);
-        return;
-    }
-
-    TFModbusTCPClientHeader header;
-    TFModbusTCPClientRegisterRequestPayload payload;
-    uint16_t transaction_id = next_transaction_id++;
-
-    header.transaction_id = swap_16(transaction_id);
-    header.protocol_id = swap_16(0);
-    header.frame_length = swap_16(6);
-    header.unit_id = unit_id;
-
-    payload.function_code = function_code;
-    payload.start_address = swap_16(start_address);
-    payload.register_count = swap_16(register_count);
-
-    uint8_t request[sizeof(header) + sizeof(payload)];
-
-    memcpy(request, header.bytes, sizeof(header));
-    memcpy(request + sizeof(header), payload.bytes, sizeof(payload));
-
-    if (!send(request, sizeof(header) + sizeof(payload))) {
-        int saved_errno = errno;
-        callback(TFModbusTCPClientTransactionResult::SendFailed);
-        disconnect(TFGenericTCPClientDisconnectReason::SocketSendFailed, saved_errno);
+    if (count >= TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT) {
+        callback(TFModbusTCPClientTransactionResult::NoTransactionAvailable);
         return;
     }
 
     TFModbusTCPClientTransaction *transaction = new TFModbusTCPClientTransaction;
 
-    transaction->transaction_id = transaction_id;
-    transaction->unit_id = unit_id;
     transaction->function_code = function_code;
+    transaction->unit_id = unit_id;
+    transaction->start_address = start_address;
     transaction->register_count = register_count;
     transaction->buffer = buffer;
-    transaction->deadline = TFNetworkUtil::calculate_deadline(timeout);
+    transaction->timeout = timeout;
     transaction->callback = callback;
+    transaction->next = nullptr;
 
-    transactions[transaction_index] = transaction;
+    *tail_ptr = transaction;
 }
 
 void TFModbusTCPClient::close_hook()
@@ -236,12 +211,44 @@ void TFModbusTCPClient::close_hook()
 
 void TFModbusTCPClient::tick_hook()
 {
-    check_transaction_timeout();
+    check_pending_transaction_timeout();
+
+    if (pending_transaction == nullptr && scheduled_transaction_head != nullptr) {
+        pending_transaction = scheduled_transaction_head;
+        scheduled_transaction_head = scheduled_transaction_head->next;
+        pending_transaction->next = nullptr;
+
+        pending_transaction_id = next_transaction_id++;
+        pending_transaction_deadline = TFNetworkUtil::calculate_deadline(pending_transaction->timeout);
+
+        TFModbusTCPClientHeader header;
+        TFModbusTCPClientRegisterRequestPayload payload;
+
+        header.transaction_id = swap_16(pending_transaction_id);
+        header.protocol_id = swap_16(0);
+        header.frame_length = swap_16(6);
+        header.unit_id = pending_transaction->unit_id;
+
+        payload.function_code = pending_transaction->function_code;
+        payload.start_address = swap_16(pending_transaction->start_address);
+        payload.register_count = swap_16(pending_transaction->register_count);
+
+        uint8_t request[sizeof(header) + sizeof(payload)];
+
+        memcpy(request, header.bytes, sizeof(header));
+        memcpy(request + sizeof(header), payload.bytes, sizeof(payload));
+
+        if (!send(request, sizeof(header) + sizeof(payload))) {
+            int saved_errno = errno;
+            finish_pending_transaction(TFModbusTCPClientTransactionResult::SendFailed);
+            disconnect(TFGenericTCPClientDisconnectReason::SocketSendFailed, saved_errno);
+        }
+    }
 }
 
 bool TFModbusTCPClient::receive_hook()
 {
-    check_transaction_timeout();
+    check_pending_transaction_timeout();
 
     size_t pending_header_missing = sizeof(pending_header) - pending_header_used;
 
@@ -276,13 +283,13 @@ bool TFModbusTCPClient::receive_hook()
         }
 
         if (pending_header.frame_length < TF_MODBUS_TCP_CLIENT_MIN_FRAME_LENGTH) {
-            finish_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ResponseShorterThanMinimum);
+            finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ResponseShorterThanMinimum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
         }
 
         if (pending_header.frame_length > TF_MODBUS_TCP_CLIENT_MAX_FRAME_LENGTH) {
-            finish_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ResponseLongerThanMaximum);
+            finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ResponseLongerThanMaximum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
         }
@@ -309,7 +316,7 @@ bool TFModbusTCPClient::receive_hook()
 
     if (ioctl(socket_fd, FIONREAD, &readable) < 0) {
         int saved_errno = errno;
-        finish_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ReceiveFailed);
+        finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ReceiveFailed);
         disconnect(TFGenericTCPClientDisconnectReason::SocketIoctlFailed, saved_errno);
         return false;
     }
@@ -324,52 +331,50 @@ bool TFModbusTCPClient::receive_hook()
         pending_header.frame_length += result;
     }
 
-    TFModbusTCPClientTransaction *transaction = take_transaction(pending_header.transaction_id);
-
-    if (transaction == nullptr) {
+    if (pending_transaction == nullptr || pending_transaction_id != pending_header.transaction_id) {
         reset_pending_response();
         return true;
     }
 
-    if (transaction->unit_id != pending_header.unit_id) {
+    if (pending_transaction->unit_id != pending_header.unit_id) {
         reset_pending_response();
-        finish_transaction(transaction, TFModbusTCPClientTransactionResult::ResponseUnitIDMismatch);
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseUnitIDMismatch);
         return true;
     }
 
-    if (transaction->function_code != (pending_payload.function_code & 0x7f)) {
+    if (pending_transaction->function_code != (pending_payload.function_code & 0x7f)) {
         reset_pending_response();
-        finish_transaction(transaction, TFModbusTCPClientTransactionResult::ResponseFunctionCodeMismatch);
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseFunctionCodeMismatch);
         return true;
     }
 
     if ((pending_payload.function_code & 0x80) != 0) {
         reset_pending_response();
-        finish_transaction(transaction, static_cast<TFModbusTCPClientTransactionResult>(pending_payload.exception_code));
+        finish_pending_transaction(static_cast<TFModbusTCPClientTransactionResult>(pending_payload.exception_code));
         return true;
     }
 
     if ((pending_payload.byte_count & 1) != 0) {
         reset_pending_response();
-        finish_transaction(transaction, TFModbusTCPClientTransactionResult::ResponseByteCountInvalid);
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseByteCountInvalid);
         return true;
     }
 
     uint8_t register_count = pending_payload.byte_count / 2;
 
-    if (transaction->register_count != register_count) {
-        tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() register count mismatch (transaction->register_count=%u register_count=%u pending_header.frame_length=%u)",
-                                 (void *)this, transaction->register_count, register_count, pending_header.frame_length);
+    if (pending_transaction->register_count != register_count) {
+        tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() register count mismatch (pending_transaction->register_count=%u register_count=%u pending_header.frame_length=%u)",
+                                 (void *)this, pending_transaction->register_count, register_count, pending_header.frame_length);
 
         reset_pending_response();
-        finish_transaction(transaction, TFModbusTCPClientTransactionResult::ResponseRegisterCountMismatch);
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseRegisterCountMismatch);
         return true;
     }
 
     if (pending_payload_used < 2 + register_count * 2u) {
         // Intentionally accept too long responses
         reset_pending_response();
-        finish_transaction(transaction, TFModbusTCPClientTransactionResult::ResponseTooShort);
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseTooShort);
         return true;
     }
 
@@ -378,9 +383,9 @@ bool TFModbusTCPClient::receive_hook()
                                  (void *)this, pending_payload_used - (2 + register_count * 2u));
     }
 
-    if (transaction->buffer != nullptr) {
+    if (pending_transaction->buffer != nullptr) {
         uint16_t *src = pending_payload.register_values;
-        uint16_t *dst = transaction->buffer;
+        uint16_t *dst = pending_transaction->buffer;
         uint8_t register_remaining = register_count;
 
         while (register_remaining-- > 0) {
@@ -389,7 +394,7 @@ bool TFModbusTCPClient::receive_hook()
     }
 
     reset_pending_response();
-    finish_transaction(transaction, TFModbusTCPClientTransactionResult::Success);
+    finish_pending_transaction(TFModbusTCPClientTransactionResult::Success);
     return true;
 }
 
@@ -403,13 +408,13 @@ ssize_t TFModbusTCPClient::receive_payload(size_t length)
         }
 
         int saved_errno = errno;
-        finish_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ReceiveFailed);
+        finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ReceiveFailed);
         disconnect(TFGenericTCPClientDisconnectReason::SocketReceiveFailed, saved_errno);
         return -1;
     }
 
     if (result == 0) {
-        finish_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::DisconnectedByPeer);
+        finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::DisconnectedByPeer);
         disconnect(TFGenericTCPClientDisconnectReason::DisconnectedByPeer, -1);
         return -1;
     }
@@ -418,60 +423,52 @@ ssize_t TFModbusTCPClient::receive_payload(size_t length)
     return result;
 }
 
-TFModbusTCPClientTransaction *TFModbusTCPClient::take_transaction(uint16_t transaction_id)
+void TFModbusTCPClient::finish_pending_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result)
 {
-    for (ssize_t i = 0; i < TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT; ++i) {
-        TFModbusTCPClientTransaction *transaction = transactions[i];
-
-        if (transaction != nullptr && transaction->transaction_id == transaction_id) {
-            transactions[i] = nullptr;
-            return transaction;
-        }
-    }
-
-    return nullptr;
-}
-
-void TFModbusTCPClient::finish_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result)
-{
-    TFModbusTCPClientTransaction *transaction = take_transaction(transaction_id);
-
-    if (transaction != nullptr) {
-        finish_transaction(transaction, result);
+    if (pending_transaction != nullptr && pending_transaction_id == transaction_id) {
+        finish_pending_transaction(result);
     }
 }
 
-void TFModbusTCPClient::finish_transaction(TFModbusTCPClientTransaction *transaction, TFModbusTCPClientTransactionResult result)
+void TFModbusTCPClient::finish_pending_transaction(TFModbusTCPClientTransactionResult result)
 {
-    transaction->callback(result);
-    delete transaction;
+    if (pending_transaction != nullptr) {
+        TFModbusTCPClientTransactionCallback callback = std::move(pending_transaction->callback);
+        pending_transaction->callback = nullptr;
+
+        delete pending_transaction;
+        pending_transaction = nullptr;
+        pending_transaction_id = 0;
+        pending_transaction_deadline = 0;
+
+        callback(result);
+    }
 }
 
 void TFModbusTCPClient::finish_all_transactions(TFModbusTCPClientTransactionResult result)
 {
-    for (ssize_t i = 0; i < TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT; ++i) {
-        TFModbusTCPClientTransaction *transaction = transactions[i];
+    finish_pending_transaction(result);
 
-        if (transactions[i] != nullptr) {
-            transactions[i] = nullptr;
-            finish_transaction(transaction, result);
-        }
+    TFModbusTCPClientTransaction *scheduled_transaction = scheduled_transaction_head;
+    scheduled_transaction_head = nullptr;
+
+    while (scheduled_transaction != nullptr) {
+        TFModbusTCPClientTransactionCallback callback = std::move(scheduled_transaction->callback);
+        scheduled_transaction->callback = nullptr;
+
+        TFModbusTCPClientTransaction *scheduled_transaction_next = scheduled_transaction->next;
+
+        delete scheduled_transaction;
+        scheduled_transaction = scheduled_transaction_next;
+
+        callback(result);
     }
 }
 
-void TFModbusTCPClient::check_transaction_timeout()
+void TFModbusTCPClient::check_pending_transaction_timeout()
 {
-    for (ssize_t i = 0; i < TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT; ++i) {
-        TFModbusTCPClientTransaction *transaction = transactions[i];
-
-        if (transaction == nullptr) {
-            continue;
-        }
-
-        if (TFNetworkUtil::deadline_elapsed(transaction->deadline)) {
-            transactions[i] = nullptr;
-            finish_transaction(transaction, TFModbusTCPClientTransactionResult::Timeout);
-        }
+    if (pending_transaction != nullptr && TFNetworkUtil::deadline_elapsed(pending_transaction_deadline)) {
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::Timeout);
     }
 }
 

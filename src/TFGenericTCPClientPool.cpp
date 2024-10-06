@@ -89,13 +89,13 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
 
     slot->client->connect(host_name, port,
     [this, slot_index, slot_id](TFGenericTCPClientConnectResult result, int error_number) {
+        TFGenericTCPClientPoolSlot *slot = slots[slot_index];
+
+        if (slot == nullptr || slot->id != slot_id) {
+            return; // slot got freed or reused
+        }
+
         for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_HANDLE_COUNT; ++i) {
-            TFGenericTCPClientPoolSlot *slot = slots[slot_index];
-
-            if (slot == nullptr || slot->id != slot_id) {
-                return; // slot got freed or reused
-            }
-
             TFGenericTCPClientPoolHandle *handle = slot->handles[i];
 
             if (handle == nullptr) {
@@ -121,13 +121,13 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
         }
     },
     [this, slot_index, slot_id](TFGenericTCPClientDisconnectReason reason, int error_number) {
+        TFGenericTCPClientPoolSlot *slot = slots[slot_index];
+
+        if (slot == nullptr || slot->id != slot_id) {
+            return; // slot got freed or reused
+        }
+
         for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_HANDLE_COUNT; ++i) {
-            TFGenericTCPClientPoolSlot *slot = slots[slot_index];
-
-            if (slot == nullptr || slot->id != slot_id) {
-                return; // slot got freed or reused
-            }
-
             TFGenericTCPClientPoolHandle *handle = slot->handles[i];
 
             if (handle == nullptr) {

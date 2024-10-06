@@ -147,6 +147,7 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
                                       uint16_t start_address,
                                       uint16_t register_count,
                                       uint16_t *buffer,
+                                      uint32_t timeout, // milliseconds
                                       TFModbusTCPClientTransactionCallback &&callback)
 {
     uint8_t function_code;
@@ -221,7 +222,7 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
     transaction->function_code = function_code;
     transaction->register_count = register_count;
     transaction->buffer = buffer;
-    transaction->deadline = TFNetworkUtil::calculate_deadline(transaction_timeout);
+    transaction->deadline = TFNetworkUtil::calculate_deadline(timeout);
     transaction->callback = callback;
 
     transactions[transaction_index] = transaction;

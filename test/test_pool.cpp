@@ -69,6 +69,7 @@ int main()
                                 1013,
                                 2,
                                 buffer1,
+                                1000,
                                 [&pool, handle, &buffer1, &running](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;
@@ -125,6 +126,7 @@ int main()
                                 1013,
                                 2,
                                 buffer2,
+                                1000,
                                 [&pool, handle, &buffer2, &running](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;

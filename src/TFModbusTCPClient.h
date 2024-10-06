@@ -32,7 +32,6 @@
 
 // configuration
 #define TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT 8
-#define TF_MODBUS_TCP_CLIENT_TRANSACTION_TIMEOUT 1000 // milliseconds
 
 enum class TFModbusTCPClientRegisterType
 {
@@ -102,7 +101,7 @@ struct TFModbusTCPClientTransaction
     uint8_t function_code;
     uint16_t register_count;
     uint16_t *buffer;
-    uint32_t deadline;
+    uint32_t deadline; // milliseconds
     TFModbusTCPClientTransactionCallback callback;
 };
 
@@ -124,13 +123,12 @@ class TFModbusTCPClient final : public TFGenericTCPClient
 public:
     TFModbusTCPClient() { memset(transactions, 0, sizeof(transactions)); }
 
-    uint32_t get_transaction_timeout() const { return this->transaction_timeout; }
-    void set_transaction_timeout(uint32_t transaction_timeout) { this->transaction_timeout = transaction_timeout; }
     void read_register(TFModbusTCPClientRegisterType register_type,
                        uint8_t unit_id,
                        uint16_t start_address,
                        uint16_t register_count,
                        uint16_t *buffer,
+                       uint32_t timeout, // milliseconds
                        TFModbusTCPClientTransactionCallback &&callback);
 
 private:
@@ -146,7 +144,6 @@ private:
     void check_transaction_timeout();
     void reset_pending_response();
 
-    uint32_t transaction_timeout = TF_MODBUS_TCP_CLIENT_TRANSACTION_TIMEOUT;
     uint16_t next_transaction_id = 0;
     TFModbusTCPClientTransaction *transactions[TF_MODBUS_TCP_CLIENT_MAX_TRANSACTION_COUNT];
     TFModbusTCPClientHeader pending_header;

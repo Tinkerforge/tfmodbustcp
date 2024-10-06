@@ -60,6 +60,7 @@ int main()
                                 //40000,
                                 2,
                                 buffer,
+                                1000,
                                 [&client, &buffer](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;

@@ -28,6 +28,10 @@ int main()
     bool running = true;
     TFModbusTCPClient client;
 
+    TFNetworkUtil::set_logln_callback([](const char *message) {
+        printf("%u | %s\n", milliseconds(), message);
+    });
+
     TFNetworkUtil::set_milliseconds_callback(milliseconds);
 
     TFNetworkUtil::set_resolve_callback([&resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {

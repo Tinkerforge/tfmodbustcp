@@ -22,13 +22,23 @@
 #include <stdint.h>
 #include <functional>
 
+typedef std::function<void(const char *message)> TFNetworkUtilLoglnCallback;
 typedef std::function<uint32_t(void)> TFNetworkUtilMillisecondsCallback;
 typedef std::function<void(uint32_t host_address, int error_number)> TFNetworkUtilResolveResultCallback;
 typedef std::function<void(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveCallback;
 
+#if TF_NETWORK_UTIL_DEBUG_LOG
+#define tf_network_util_debugfln(fmt, ...) TFNetworkUtil::logfln(fmt, __VA_ARGS__)
+#else
+#define tf_network_util_debugfln(fmt, ...) do {} while (0)
+#endif
+
 class TFNetworkUtil
 {
 public:
+    static void set_logln_callback(TFNetworkUtilLoglnCallback &&callback);
+    [[gnu::format(__printf__, 1, 2)]] static void logfln(const char *fmt, ...);
+
     static void set_milliseconds_callback(TFNetworkUtilMillisecondsCallback &&callback);
     static uint32_t milliseconds();
 

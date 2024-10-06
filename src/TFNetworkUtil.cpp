@@ -20,6 +20,37 @@
 #include "TFNetworkUtil.h"
 
 #include <errno.h>
+#include <stdio.h>
+#include <stdarg.h>
+
+static void logln_dummy(const char *message)
+{
+    (void)message;
+}
+
+static TFNetworkUtilLoglnCallback logln_callback = logln_dummy;
+
+void TFNetworkUtil::set_logln_callback(TFNetworkUtilLoglnCallback &&callback)
+{
+    if (callback) {
+        logln_callback = callback;
+    }
+    else {
+        logln_callback = logln_dummy;
+    }
+}
+
+void TFNetworkUtil::logfln(const char *fmt, ...)
+{
+    char buffer[512];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    logln_callback(buffer);
+}
 
 static uint32_t milliseconds_dummy()
 {

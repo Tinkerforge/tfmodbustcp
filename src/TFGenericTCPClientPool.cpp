@@ -19,11 +19,15 @@
 
 #include "TFGenericTCPClientPool.h"
 
+#include "TFNetworkUtil.h"
+
 void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
                                      TFGenericTCPClientPoolConnectCallback &&connect_callback,
                                      TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback)
 {
     ssize_t slot_index = -1;
+
+    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u)", (void *)this, host_name, port);
 
     for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT; ++i) {
         TFGenericTCPClientPoolSlot *slot = slots[i];
@@ -38,8 +42,18 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
 
         const char *slot_host_name = slot->client->get_host_name();
 
-        if (slot_host_name != nullptr && strcmp(slot_host_name, host_name) == 0 && slot->client->get_port() == port) {
+        if (slot_host_name == nullptr) {
+            continue;
+        }
+
+        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) checking existing client (slot=%zu client=%p host_name=%s port=%u)",
+                                 (void *)this, host_name, port, i, slot->client, slot_host_name, slot->client->get_port());
+
+        if (strcmp(slot_host_name, host_name) == 0 && slot->client->get_port() == port) {
             ssize_t handle_index = -1;
+
+            tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) found matching existing client (slot=%zu client=%p)",
+                                     (void *)this, host_name, port, i, slot->client);
 
             for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_HANDLE_COUNT; ++k) {
                 if (slot->handles[k] == nullptr) {
@@ -80,6 +94,9 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
     slot->id = slot_id;
     slot->client = new_client();
     slots[slot_index] = slot;
+
+    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) creating new client (slot=%zu client=%p)",
+                             (void *)this, host_name, port, slot_index, slot->client);
 
     TFGenericTCPClientPoolHandle *handle = new TFGenericTCPClientPoolHandle;
     handle->client = slot->client;
@@ -194,6 +211,9 @@ void TFGenericTCPClientPool::tick()
             slot->client->tick();
         }
         else {
+            tf_network_util_debugfln("TFGenericTCPClientPool[%p]::tick() deleting inactive client (slot=%zu client=%p host_name=%s port=%u)",
+                                     (void *)this, i, slot->client, slot->client->get_host_name(), slot->client->get_port());
+
             slots[i] = nullptr;
             slot->client->disconnect();
             delete slot->client;

@@ -304,7 +304,7 @@ void TFGenericTCPClient::tick()
     uint32_t tick_deadline = TFNetworkUtil::calculate_deadline(TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION);
     bool first = true;
 
-    while (socket_fd >= 0 && (TFNetworkUtil::deadline_elapsed(tick_deadline) || first)) {
+    while (socket_fd >= 0 && (!TFNetworkUtil::deadline_elapsed(tick_deadline) || first)) {
         first = false;
 
         if (!receive_hook()) {

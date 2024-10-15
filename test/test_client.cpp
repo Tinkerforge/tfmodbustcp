@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <time.h>
+#include <netdb.h>
 #include <Arduino.h>
 #include "../src/TFNetworkUtil.h"
 #include "../src/TFModbusTCPClient.h"
@@ -24,6 +26,7 @@ int main()
 {
     uint16_t register_buffer[2] = {0, 0};
     uint8_t coil_buffer = 0;
+    char *resolve_host_name = nullptr;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
     uint32_t resolve_callback_time;
     bool running = true;
@@ -35,7 +38,8 @@ int main()
 
     TFNetworkUtil::set_milliseconds_callback(milliseconds);
 
-    TFNetworkUtil::set_resolve_callback([&resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+    TFNetworkUtil::set_resolve_callback([&resolve_host_name, &resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+        resolve_host_name = strdup(host_name);
         resolve_callback = callback;
         resolve_callback_time = milliseconds();
     });
@@ -109,8 +113,19 @@ int main()
     });
 
     while (running) {
-        if (resolve_callback && resolve_callback_time + 1000 < milliseconds()) {
-            resolve_callback(IPAddress(10, 2, 80, 4), 0);
+        if (resolve_host_name != nullptr && resolve_callback && resolve_callback_time + 1000 < milliseconds()) {
+            hostent *result = gethostbyname(resolve_host_name);
+
+            free(resolve_host_name);
+            resolve_host_name = nullptr;
+
+            if (result == nullptr) {
+                resolve_callback(0, h_errno);
+                resolve_callback = nullptr;
+                continue;
+            }
+
+            resolve_callback(((struct in_addr *)result->h_addr)->s_addr, 0);
             resolve_callback = nullptr;
         }
 

@@ -22,7 +22,8 @@ static uint32_t milliseconds()
 
 int main()
 {
-    uint16_t buffer[2] = {0, 0};
+    uint16_t register_buffer[2] = {0, 0};
+    uint8_t coil_buffer = 0;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
     uint32_t resolve_callback_time;
     bool running = true;
@@ -41,7 +42,7 @@ int main()
 
     printf("%u | connect...\n", milliseconds());
     client.connect("foobar", 502,
-    [&client, &buffer, &running](TFGenericTCPClientConnectResult result, int error_number) {
+    [&client, &register_buffer, &coil_buffer, &running](TFGenericTCPClientConnectResult result, int error_number) {
         printf("%u | connect: %s / %s (%d)\n",
                milliseconds(),
                get_tf_generic_tcp_client_connect_result_name(result),
@@ -53,29 +54,47 @@ int main()
             return;
         }
 
-        printf("%u | read_register...\n", milliseconds());
-        client.read_register(TFModbusTCPClientRegisterType::InputRegister,
+        printf("%u | read input registers...\n", milliseconds());
+        client.read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
-                                //40000,
                                 2,
-                                buffer,
+                                register_buffer,
                                 1000,
-                                [&client, &buffer](TFModbusTCPClientTransactionResult result) {
+                                [&client, &register_buffer](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;
                                         uint16_t r[2];
                                     } c32;
 
-                                    c32.r[0] = buffer[0];
-                                    c32.r[1] = buffer[1];
-                                    printf("%u | read_register: %s (%d) [%u %u -> %f]\n",
+                                    c32.r[0] = register_buffer[0];
+                                    c32.r[1] = register_buffer[1];
+                                    printf("%u | read input registers: %s (%d) [%u %u -> %f]\n",
                                         milliseconds(),
                                         get_tf_modbus_tcp_client_transaction_result_name(result),
                                         static_cast<int>(result),
                                         c32.r[0],
                                         c32.r[1],
                                         static_cast<double>(c32.f));
+                            });
+
+        printf("%u | read coils...\n", milliseconds());
+        client.read(TFModbusTCPDataType::Coil,
+                                1,
+                                122,
+                                5,
+                                &coil_buffer,
+                                1000,
+                                [&client, &coil_buffer](TFModbusTCPClientTransactionResult result) {
+                                    printf("%u | read coils: %s (%d) [%u %u %u %u %u]\n",
+                                        milliseconds(),
+                                        get_tf_modbus_tcp_client_transaction_result_name(result),
+                                        static_cast<int>(result),
+                                        (coil_buffer >> 0) & 1,
+                                        (coil_buffer >> 1) & 1,
+                                        (coil_buffer >> 2) & 1,
+                                        (coil_buffer >> 3) & 1,
+                                        (coil_buffer >> 4) & 1);
                                     client.disconnect();
                             });
     },

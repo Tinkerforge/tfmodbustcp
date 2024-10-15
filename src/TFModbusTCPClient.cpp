@@ -26,35 +26,6 @@
 
 #include "TFNetworkUtil.h"
 
-union TFModbusTCPClientRegisterRequestPayload
-{
-    struct [[gnu::packed]] {
-        uint8_t function_code;
-        uint16_t start_address;
-        uint16_t register_count;
-    };
-    uint8_t bytes[5];
-};
-
-static_assert(sizeof(TFModbusTCPClientHeader) == TF_MODBUS_TCP_CLIENT_HEADER_LENGTH, "TFModbusTCPClientHeader has unexpected size");
-static_assert(offsetof(TFModbusTCPClientHeader, transaction_id) == 0, "TFModbusTCPClientHeader::transaction_id has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientHeader, protocol_id) == 2, "TFModbusTCPClientHeader::protocol_id has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientHeader, frame_length) == 4, "TFModbusTCPClientHeader::frame_length has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientHeader, unit_id) == 6, "TFModbusTCPClientHeader::unit_id has unexpected offset");
-
-static_assert(sizeof(TFModbusTCPClientRegisterRequestPayload) == 5, "TFModbusTCPClientRegisterRequestPayload has unexpected size");
-static_assert(offsetof(TFModbusTCPClientRegisterRequestPayload, function_code) == 0, "TFModbusTCPClientRegisterRequestPayload::function_code has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterRequestPayload, start_address) == 1, "TFModbusTCPClientRegisterRequestPayload::start_address has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterRequestPayload, register_count) == 3, "TFModbusTCPClientRegisterRequestPayload::register_count has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterRequestPayload, bytes) == 0, "TFModbusTCPClientRegisterRequestPayload::header has unexpected offset");
-
-static_assert(sizeof(TFModbusTCPClientRegisterResponsePayload) == TF_MODBUS_TCP_CLIENT_MAX_PAYLOAD_LENGTH, "TFModbusTCPClientRegisterResponsePayload has unexpected size");
-static_assert(offsetof(TFModbusTCPClientRegisterResponsePayload, function_code) == 0, "TFModbusTCPClientRegisterResponsePayload::function_code has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterResponsePayload, exception_code) == 1, "TFModbusTCPClientRegisterResponsePayload::exception_code has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterResponsePayload, byte_count) == 1, "TFModbusTCPClientRegisterResponsePayload::byte_count has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterResponsePayload, register_values) == 2, "TFModbusTCPClientRegisterResponsePayload::register_values has unexpected offset");
-static_assert(offsetof(TFModbusTCPClientRegisterResponsePayload, bytes) == 0, "TFModbusTCPClientRegisterResponsePayload::bytes has unexpected offset");
-
 static inline uint16_t swap_16(uint16_t value)
 {
     return (value >> 8) | (value << 8);
@@ -129,6 +100,9 @@ const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTr
     case TFModbusTCPClientTransactionResult::ResponseFunctionCodeMismatch:
         return "ResponseFunctionCodeMismatch";
 
+    case TFModbusTCPClientTransactionResult::ResponseFunctionCodeNotSupported:
+        return "ResponseFunctionCodeNotSupported";
+
     case TFModbusTCPClientTransactionResult::ResponseByteCountInvalid:
         return "ResponseByteCountInvalid";
 
@@ -142,23 +116,51 @@ const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTr
     return "Unknown";
 }
 
-void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_type,
-                                      uint8_t unit_id,
-                                      uint16_t start_address,
-                                      uint16_t register_count,
-                                      uint16_t *buffer,
-                                      uint32_t timeout, // milliseconds
-                                      TFModbusTCPClientTransactionCallback &&callback)
+void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
+                             uint8_t unit_id,
+                             uint16_t start_address,
+                             uint16_t data_count,
+                             void *buffer,
+                             uint32_t timeout, // milliseconds
+                             TFModbusTCPClientTransactionCallback &&callback)
 {
     uint8_t function_code;
 
-    switch (register_type) {
-    case TFModbusTCPClientRegisterType::HoldingRegister:
-        function_code = 3;
+    switch (data_type) {
+    case TFModbusTCPDataType::Coil:
+        if (data_count < TF_MODBUS_TCP_MIN_READ_COIL_COUNT || data_count > TF_MODBUS_TCP_MAX_READ_COIL_COUNT) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument);
+            return;
+        }
+
+        function_code = 1; // Read Coils
         break;
 
-    case TFModbusTCPClientRegisterType::InputRegister:
-        function_code = 4;
+    case TFModbusTCPDataType::DiscreteInput:
+        if (data_count < TF_MODBUS_TCP_MIN_READ_COIL_COUNT || data_count > TF_MODBUS_TCP_MAX_READ_COIL_COUNT) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument);
+            return;
+        }
+
+        function_code = 2; // Read Discrete Inputs
+        break;
+
+    case TFModbusTCPDataType::HoldingRegister:
+        if (data_count < TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT || data_count > TF_MODBUS_TCP_MAX_READ_REGISTER_COUNT) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument);
+            return;
+        }
+
+        function_code = 3; // Read Holding Registers
+        break;
+
+    case TFModbusTCPDataType::InputRegister:
+        if (data_count < TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT || data_count > TF_MODBUS_TCP_MAX_READ_REGISTER_COUNT) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument);
+            return;
+        }
+
+        function_code = 4; // Read Input Registers
         break;
 
     default:
@@ -166,7 +168,7 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
         return;
     }
 
-    if (register_count < TF_MODBUS_TCP_CLIENT_MIN_REGISTER_COUNT || register_count > TF_MODBUS_TCP_CLIENT_MAX_REGISTER_COUNT || buffer == nullptr || !callback) {
+    if (buffer == nullptr || !callback) {
         callback(TFModbusTCPClientTransactionResult::InvalidArgument);
         return;
     }
@@ -177,14 +179,14 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
     }
 
     TFModbusTCPClientTransaction **tail_ptr = &scheduled_transaction_head;
-    size_t count = 0;
+    size_t scheduled_transaction_count = 0;
 
     while (*tail_ptr != nullptr) {
         tail_ptr = &(*tail_ptr)->next;
-        ++count;
+        ++scheduled_transaction_count;
     }
 
-    if (count >= TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT) {
+    if (scheduled_transaction_count >= TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT) {
         callback(TFModbusTCPClientTransactionResult::NoTransactionAvailable);
         return;
     }
@@ -192,13 +194,13 @@ void TFModbusTCPClient::read_register(TFModbusTCPClientRegisterType register_typ
     TFModbusTCPClientTransaction *transaction = new TFModbusTCPClientTransaction;
 
     transaction->function_code = function_code;
-    transaction->unit_id = unit_id;
+    transaction->unit_id       = unit_id;
     transaction->start_address = start_address;
-    transaction->register_count = register_count;
-    transaction->buffer = buffer;
-    transaction->timeout = timeout;
-    transaction->callback = callback;
-    transaction->next = nullptr;
+    transaction->data_count    = data_count;
+    transaction->buffer        = buffer;
+    transaction->timeout       = timeout;
+    transaction->callback      = callback;
+    transaction->next          = nullptr;
 
     *tail_ptr = transaction;
 }
@@ -214,31 +216,25 @@ void TFModbusTCPClient::tick_hook()
     check_pending_transaction_timeout();
 
     if (pending_transaction == nullptr && scheduled_transaction_head != nullptr) {
-        pending_transaction = scheduled_transaction_head;
-        scheduled_transaction_head = scheduled_transaction_head->next;
-        pending_transaction->next = nullptr;
-
-        pending_transaction_id = next_transaction_id++;
+        pending_transaction          = scheduled_transaction_head;
+        scheduled_transaction_head   = scheduled_transaction_head->next;
+        pending_transaction->next    = nullptr;
+        pending_transaction_id       = next_transaction_id++;
         pending_transaction_deadline = TFNetworkUtil::calculate_deadline(pending_transaction->timeout);
 
-        TFModbusTCPClientHeader header;
-        TFModbusTCPClientRegisterRequestPayload payload;
+        TFModbusTCPRequest request;
+        size_t payload_length = offsetof(TFModbusTCPRequestPayload, byte_count);
 
-        header.transaction_id = swap_16(pending_transaction_id);
-        header.protocol_id = swap_16(0);
-        header.frame_length = swap_16(6);
-        header.unit_id = pending_transaction->unit_id;
+        request.header.transaction_id = swap_16(pending_transaction_id);
+        request.header.protocol_id    = swap_16(0);
+        request.header.frame_length   = swap_16(TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH + payload_length);
+        request.header.unit_id        = pending_transaction->unit_id;
 
-        payload.function_code = pending_transaction->function_code;
-        payload.start_address = swap_16(pending_transaction->start_address);
-        payload.register_count = swap_16(pending_transaction->register_count);
+        request.payload.function_code = pending_transaction->function_code;
+        request.payload.start_address = swap_16(pending_transaction->start_address);
+        request.payload.data_count    = swap_16(pending_transaction->data_count);
 
-        uint8_t request[sizeof(header) + sizeof(payload)];
-
-        memcpy(request, header.bytes, sizeof(header));
-        memcpy(request + sizeof(header), payload.bytes, sizeof(payload));
-
-        if (!send(request, sizeof(header) + sizeof(payload))) {
+        if (!send(request.bytes, sizeof(request.header) + payload_length)) {
             int saved_errno = errno;
             finish_pending_transaction(TFModbusTCPClientTransactionResult::SendFailed);
             disconnect(TFGenericTCPClientDisconnectReason::SocketSendFailed, saved_errno);
@@ -274,21 +270,21 @@ bool TFModbusTCPClient::receive_hook()
 
     if (!pending_header_checked) {
         pending_header.transaction_id = swap_16(pending_header.transaction_id);
-        pending_header.protocol_id = swap_16(pending_header.protocol_id);
-        pending_header.frame_length = swap_16(pending_header.frame_length);
+        pending_header.protocol_id    = swap_16(pending_header.protocol_id);
+        pending_header.frame_length   = swap_16(pending_header.frame_length);
 
         if (pending_header.protocol_id != 0) {
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
         }
 
-        if (pending_header.frame_length < TF_MODBUS_TCP_CLIENT_MIN_FRAME_LENGTH) {
+        if (pending_header.frame_length < TF_MODBUS_TCP_MIN_FRAME_LENGTH) {
             finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ResponseShorterThanMinimum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
         }
 
-        if (pending_header.frame_length > TF_MODBUS_TCP_CLIENT_MAX_FRAME_LENGTH) {
+        if (pending_header.frame_length > TF_MODBUS_TCP_MAX_FRAME_LENGTH) {
             finish_pending_transaction(pending_header.transaction_id, TFModbusTCPClientTransactionResult::ResponseLongerThanMaximum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
@@ -297,7 +293,7 @@ bool TFModbusTCPClient::receive_hook()
         pending_header_checked = true;
     }
 
-    size_t pending_payload_missing = pending_header.frame_length - TF_MODBUS_TCP_CLIENT_FRAME_IN_HEADER_LENGTH - pending_payload_used;
+    size_t pending_payload_missing = pending_header.frame_length - TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH - pending_payload_used;
 
     if (pending_payload_missing > 0) {
         if (receive_payload(pending_payload_missing) <= 0) {
@@ -321,7 +317,7 @@ bool TFModbusTCPClient::receive_hook()
         return false;
     }
 
-    if (readable > 0 && static_cast<size_t>(readable) < sizeof(TFModbusTCPClientHeader) && pending_payload_used + readable <= TF_MODBUS_TCP_CLIENT_MAX_PAYLOAD_LENGTH) {
+    if (readable > 0 && static_cast<size_t>(readable) < sizeof(TFModbusTCPHeader) && pending_payload_used + readable <= TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH) {
         ssize_t result = receive_payload(readable);
 
         if (result <= 0) {
@@ -342,7 +338,7 @@ bool TFModbusTCPClient::receive_hook()
         return true;
     }
 
-    if (pending_transaction->function_code != (pending_payload.function_code & 0x7f)) {
+    if (pending_transaction->function_code != (pending_payload.function_code & 0x7F)) {
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseFunctionCodeMismatch);
         return true;
@@ -354,42 +350,64 @@ bool TFModbusTCPClient::receive_hook()
         return true;
     }
 
-    if ((pending_payload.byte_count & 1) != 0) {
+    uint8_t expected_byte_count;
+    bool copy_coil_values = false;
+    bool copy_register_values = false;
+
+    switch (pending_payload.function_code) {
+    case 1: // Read Coils
+    case 2: // Read Discrete Inputs
+        expected_byte_count = (pending_transaction->data_count + 7) / 8;
+        copy_coil_values = true;
+        break;
+
+    case 3: // Read Holding Registers
+    case 4: // Read Input Registers
+        expected_byte_count = pending_transaction->data_count * 2;
+        copy_register_values = true;
+        break;
+
+    default:
         reset_pending_response();
-        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseByteCountInvalid);
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseFunctionCodeNotSupported);
         return true;
     }
 
-    uint8_t register_count = pending_payload.byte_count / 2;
-
-    if (pending_transaction->register_count != register_count) {
-        tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() register count mismatch (pending_transaction->register_count=%u register_count=%u pending_header.frame_length=%u)",
-                                 (void *)this, pending_transaction->register_count, register_count, pending_header.frame_length);
+    if (expected_byte_count != pending_payload.byte_count) {
+        tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() byte count mismatch (expected_byte_count=%u pending_payload.byte_count=%u pending_header.frame_length=%u)",
+                                 (void *)this, expected_byte_count, pending_payload.byte_count, pending_header.frame_length);
 
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseRegisterCountMismatch);
         return true;
     }
 
-    if (pending_payload_used < 2 + register_count * 2u) {
+    if (pending_payload_used < TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_payload.byte_count) {
         // Intentionally accept too long responses
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseTooShort);
         return true;
     }
 
-    if (pending_payload_used > 2 + register_count * 2u) {
+    if (pending_payload_used > TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_payload.byte_count) {
         tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() accepting excess payload (excess_payload_length=%zu)",
-                                 (void *)this, pending_payload_used - (2 + register_count * 2u));
+                                 (void *)this, pending_payload_used - (TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_payload.byte_count));
     }
 
     if (pending_transaction->buffer != nullptr) {
-        uint16_t *src = pending_payload.register_values;
-        uint16_t *dst = pending_transaction->buffer;
-        uint8_t register_remaining = register_count;
+        if (copy_coil_values) {
+            uint8_t *buffer = static_cast<uint8_t *>(pending_transaction->buffer);
 
-        while (register_remaining-- > 0) {
-            *dst++ = swap_16(*src++);
+            for (size_t i = 0; i < pending_payload.byte_count; ++i) {
+                buffer[i] = pending_payload.coil_values[i];
+            }
+        }
+        else if (copy_register_values) {
+            uint16_t *buffer = static_cast<uint16_t *>(pending_transaction->buffer);
+
+            for (size_t i = 0; i < pending_transaction->data_count; ++i) {
+                buffer[i] = swap_16(pending_payload.register_values[i]);
+            }
         }
     }
 
@@ -437,8 +455,8 @@ void TFModbusTCPClient::finish_pending_transaction(TFModbusTCPClientTransactionR
         pending_transaction->callback = nullptr;
 
         delete pending_transaction;
-        pending_transaction = nullptr;
-        pending_transaction_id = 0;
+        pending_transaction          = nullptr;
+        pending_transaction_id       = 0;
         pending_transaction_deadline = 0;
 
         callback(result);
@@ -474,7 +492,7 @@ void TFModbusTCPClient::check_pending_transaction_timeout()
 
 void TFModbusTCPClient::reset_pending_response()
 {
-    pending_header_used = 0;
+    pending_header_used    = 0;
     pending_header_checked = false;
-    pending_payload_used = 0;
+    pending_payload_used   = 0;
 }

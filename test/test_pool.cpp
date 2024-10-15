@@ -63,8 +63,8 @@ int main()
 
         pool.release(handle);
 #else
-        printf("%u | read_register1... handle=%p\n", milliseconds(), handle);
-        handle->client->read_register(TFModbusTCPClientRegisterType::InputRegister,
+        printf("%u | read1... handle=%p\n", milliseconds(), handle);
+        handle->client->read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
                                 2,
@@ -78,7 +78,7 @@ int main()
 
                                     c32.r[0] = buffer1[0];
                                     c32.r[1] = buffer1[1];
-                                    printf("%u | read_register: %s (%d) [%u %u -> %f]\n",
+                                    printf("%u | read1: %s (%d) [%u %u -> %f]\n",
                                         milliseconds(),
                                         get_tf_modbus_tcp_client_transaction_result_name(result),
                                         static_cast<int>(result),
@@ -120,8 +120,8 @@ int main()
             return;
         }
 
-        printf("%u | read_register2... handle=%p\n", milliseconds(), handle);
-        static_cast<TFModbusTCPClient *>(handle->client)->read_register(TFModbusTCPClientRegisterType::InputRegister,
+        printf("%u | read2... handle=%p\n", milliseconds(), handle);
+        static_cast<TFModbusTCPClient *>(handle->client)->read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
                                 2,
@@ -135,7 +135,7 @@ int main()
 
                                     c32.r[0] = buffer2[0];
                                     c32.r[1] = buffer2[1];
-                                    printf("%u | read_register2: %s (%d) [%u %u -> %f]\n",
+                                    printf("%u | read2: %s (%d) [%u %u -> %f]\n",
                                         milliseconds(),
                                         get_tf_modbus_tcp_client_transaction_result_name(result),
                                         static_cast<int>(result),

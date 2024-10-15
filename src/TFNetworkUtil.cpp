@@ -61,6 +61,8 @@ static TFNetworkUtilMillisecondsCallback milliseconds_callback = milliseconds_du
 
 static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
 {
+    (void)host_name;
+
     callback(0, ENOSYS);
 }
 

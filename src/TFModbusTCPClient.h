@@ -93,7 +93,7 @@ private:
     void tick_hook() override;
     bool receive_hook() override;
 
-    ssize_t receive_payload(size_t length);
+    ssize_t receive_response_payload(size_t length);
     void finish_pending_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result);
     void finish_pending_transaction(TFModbusTCPClientTransactionResult result);
     void finish_all_transactions(TFModbusTCPClientTransactionResult result);
@@ -105,9 +105,8 @@ private:
     uint16_t pending_transaction_id                          = 0;
     uint32_t pending_transaction_deadline                    = 0; // milliseconds
     TFModbusTCPClientTransaction *scheduled_transaction_head = nullptr;
-    TFModbusTCPHeader pending_header;
-    size_t pending_header_used                               = 0;
-    bool pending_header_checked                              = false;
-    TFModbusTCPResponsePayload pending_payload;
-    size_t pending_payload_used                              = 0;
+    TFModbusTCPResponse pending_response;
+    size_t pending_response_header_used                      = 0;
+    bool pending_response_header_checked                     = false;
+    size_t pending_response_payload_used                     = 0;
 };

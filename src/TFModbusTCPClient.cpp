@@ -23,7 +23,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <lwip/sockets.h>
-#include <stdio.h>
 
 #include "TFNetworkUtil.h"
 

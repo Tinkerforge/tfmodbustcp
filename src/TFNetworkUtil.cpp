@@ -33,7 +33,7 @@ static TFNetworkUtilLoglnCallback logln_callback = logln_dummy;
 void TFNetworkUtil::set_logln_callback(TFNetworkUtilLoglnCallback &&callback)
 {
     if (callback) {
-        logln_callback = callback;
+        logln_callback = std::move(callback);
     }
     else {
         logln_callback = logln_dummy;
@@ -76,7 +76,7 @@ static bool a_after_b(uint32_t a, uint32_t b)
 void TFNetworkUtil::set_milliseconds_callback(std::function<uint32_t(void)> &&callback)
 {
     if (callback) {
-        milliseconds_callback = callback;
+        milliseconds_callback = std::move(callback);
     }
     else {
         milliseconds_callback = milliseconds_dummy;
@@ -107,7 +107,7 @@ uint32_t TFNetworkUtil::calculate_deadline(uint32_t delay)
 void TFNetworkUtil::set_resolve_callback(TFNetworkUtilResolveCallback &&callback)
 {
     if (callback) {
-        resolve_callback = callback;
+        resolve_callback = std::move(callback);
     }
     else {
         resolve_callback = resolve_dummy;
@@ -116,5 +116,5 @@ void TFNetworkUtil::set_resolve_callback(TFNetworkUtilResolveCallback &&callback
 
 void TFNetworkUtil::resolve(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
 {
-    resolve_callback(host_name, std::forward<TFNetworkUtilResolveResultCallback>(callback));
+    resolve_callback(host_name, std::move(callback));
 }

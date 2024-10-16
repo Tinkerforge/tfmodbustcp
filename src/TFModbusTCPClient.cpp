@@ -200,7 +200,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
     transaction->data_count    = data_count;
     transaction->buffer        = buffer;
     transaction->timeout       = timeout;
-    transaction->callback      = callback;
+    transaction->callback      = std::move(callback);
     transaction->next          = nullptr;
 
     *tail_ptr = transaction;

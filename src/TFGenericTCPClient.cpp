@@ -143,14 +143,17 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
 
     this->host_name = strdup(host_name);
     this->port = port;
-    this->connect_callback = connect_callback;
-    this->pending_disconnect_callback = disconnect_callback;
+    this->connect_callback = std::move(connect_callback);
+    this->pending_disconnect_callback = std::move(disconnect_callback);
 }
 
 void TFGenericTCPClient::disconnect()
 {
     TFGenericTCPClientConnectCallback connect_callback = std::move(this->connect_callback);
     TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);
+
+    this->connect_callback = nullptr;
+    this->disconnect_callback = nullptr;
 
     close();
 
@@ -365,6 +368,8 @@ void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, i
 {
     TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
 
+    connect_callback = nullptr;
+
     close();
 
     if (callback) {
@@ -375,6 +380,8 @@ void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, i
 void TFGenericTCPClient::disconnect(TFGenericTCPClientDisconnectReason reason, int error_number)
 {
     TFGenericTCPClientDisconnectCallback callback = std::move(disconnect_callback);
+
+    disconnect_callback = nullptr;
 
     close();
 

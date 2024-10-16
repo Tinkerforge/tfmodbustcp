@@ -73,12 +73,12 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
             handle->client = slot->client;
 
             if (slot->client->get_connection_status() == TFGenericTCPClientConnectionStatus::Connected) {
-                handle->disconnect_callback = disconnect_callback;
+                handle->disconnect_callback = std::move(disconnect_callback);
                 connect_callback(TFGenericTCPClientConnectResult::Connected, -1, handle);
             }
             else {
-                handle->connect_callback = connect_callback;
-                handle->pending_disconnect_callback = disconnect_callback;
+                handle->connect_callback = std::move(connect_callback);
+                handle->pending_disconnect_callback = std::move(disconnect_callback);
             }
 
             slot->handles[handle_index] = handle;
@@ -102,8 +102,8 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
 
     TFGenericTCPClientPoolHandle *handle = new TFGenericTCPClientPoolHandle;
     handle->client = slot->client;
-    handle->connect_callback = connect_callback;
-    handle->pending_disconnect_callback = disconnect_callback;
+    handle->connect_callback = std::move(connect_callback);
+    handle->pending_disconnect_callback = std::move(disconnect_callback);
     slot->handles[0] = handle;
 
     slot->client->connect(host_name, port,

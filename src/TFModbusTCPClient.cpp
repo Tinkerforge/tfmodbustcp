@@ -418,6 +418,10 @@ bool TFModbusTCPClient::receive_hook()
 
 ssize_t TFModbusTCPClient::receive_payload(size_t length)
 {
+    if (length == 0) {
+        return 0;
+    }
+
     ssize_t result = recv(socket_fd, pending_payload.bytes + pending_payload_used, length, 0);
 
     if (result < 0) {

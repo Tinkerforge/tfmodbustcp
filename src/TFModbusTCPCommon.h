@@ -49,6 +49,20 @@ enum class TFModbusTCPDataType
     HoldingRegister,
 };
 
+const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type);
+
+enum class TFModbusTCPFunctionCode : uint8_t
+{
+    ReadCoils              = 1,
+    ReadDiscreteInputs     = 2,
+    ReadHoldingRegisters   = 3,
+    ReadInputRegisters     = 4,
+    WriteSingleCoil        = 5,
+    WriteSingleRegister    = 6,
+    WriteMultipleCoils     = 15,
+    WriteMultipleRegisters = 16,
+};
+
 #if defined(__GNUC__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wattributes"

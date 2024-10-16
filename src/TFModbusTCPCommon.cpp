@@ -51,3 +51,53 @@ static_assert(offsetof(TFModbusTCPResponsePayload, start_address)   == 1, "TFMod
 static_assert(offsetof(TFModbusTCPResponsePayload, data_value)      == 3, "TFModbusTCPResponsePayload::data_value has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, data_count)      == 3, "TFModbusTCPResponsePayload::data_count has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, bytes)           == 0, "TFModbusTCPResponsePayload::bytes has unexpected offset");
+
+const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type)
+{
+    switch (data_type) {
+    case TFModbusTCPDataType::Coil:
+        return "Coil";
+
+    case TFModbusTCPDataType::DiscreteInput:
+        return "DiscreteInput";
+
+    case TFModbusTCPDataType::InputRegister:
+        return "InputRegister";
+
+    case TFModbusTCPDataType::HoldingRegister:
+        return "HoldingRegister";
+    }
+
+    return "Unknown";
+}
+
+const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode function_code)
+{
+    switch (function_code) {
+    case TFModbusTCPFunctionCode::ReadCoils:
+        return "ReadCoils";
+
+    case TFModbusTCPFunctionCode::ReadDiscreteInputs:
+        return "ReadDiscreteInputs";
+
+    case TFModbusTCPFunctionCode::ReadHoldingRegisters:
+        return "ReadHoldingRegisters";
+
+    case TFModbusTCPFunctionCode::ReadInputRegisters:
+        return "ReadInputRegisters";
+
+    case TFModbusTCPFunctionCode::WriteSingleCoil:
+        return "WriteSingleCoil";
+
+    case TFModbusTCPFunctionCode::WriteSingleRegister:
+        return "WriteSingleRegister";
+
+    case TFModbusTCPFunctionCode::WriteMultipleCoils:
+        return "WriteMultipleCoils";
+
+    case TFModbusTCPFunctionCode::WriteMultipleRegisters:
+        return "WriteMultipleRegisters";
+    }
+
+    return "Unknown";
+}

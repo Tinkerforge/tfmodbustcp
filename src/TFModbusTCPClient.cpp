@@ -134,7 +134,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
             return;
         }
 
-        function_code = 1; // Read Coils
+        function_code = static_cast<uint8_t>(TFModbusTCPFunctionCode::ReadCoils);
         break;
 
     case TFModbusTCPDataType::DiscreteInput:
@@ -143,7 +143,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
             return;
         }
 
-        function_code = 2; // Read Discrete Inputs
+        function_code = static_cast<uint8_t>(TFModbusTCPFunctionCode::ReadDiscreteInputs);
         break;
 
     case TFModbusTCPDataType::HoldingRegister:
@@ -152,7 +152,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
             return;
         }
 
-        function_code = 3; // Read Holding Registers
+        function_code = static_cast<uint8_t>(TFModbusTCPFunctionCode::ReadHoldingRegisters);
         break;
 
     case TFModbusTCPDataType::InputRegister:
@@ -161,7 +161,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
             return;
         }
 
-        function_code = 4; // Read Input Registers
+        function_code = static_cast<uint8_t>(TFModbusTCPFunctionCode::ReadInputRegisters);
         break;
 
     default:
@@ -355,15 +355,15 @@ bool TFModbusTCPClient::receive_hook()
     bool copy_coil_values = false;
     bool copy_register_values = false;
 
-    switch (pending_payload.function_code) {
-    case 1: // Read Coils
-    case 2: // Read Discrete Inputs
+    switch (static_cast<TFModbusTCPFunctionCode>(pending_payload.function_code)) {
+    case TFModbusTCPFunctionCode::ReadCoils:
+    case TFModbusTCPFunctionCode::ReadDiscreteInputs:
         expected_byte_count = (pending_transaction->data_count + 7) / 8;
         copy_coil_values = true;
         break;
 
-    case 3: // Read Holding Registers
-    case 4: // Read Input Registers
+    case TFModbusTCPFunctionCode::ReadHoldingRegisters:
+    case TFModbusTCPFunctionCode::ReadInputRegisters:
         expected_byte_count = pending_transaction->data_count * 2;
         copy_register_values = true;
         break;

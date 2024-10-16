@@ -317,7 +317,9 @@ bool TFModbusTCPClient::receive_hook()
         return false;
     }
 
-    if (readable > 0 && static_cast<size_t>(readable) < sizeof(TFModbusTCPHeader) && pending_response_payload_used + readable <= TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH) {
+    if (readable > 0
+     && static_cast<size_t>(readable) < sizeof(TFModbusTCPHeader)
+     && pending_response_payload_used + readable <= TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH) {
         ssize_t result = receive_response_payload(readable);
 
         if (result <= 0) {

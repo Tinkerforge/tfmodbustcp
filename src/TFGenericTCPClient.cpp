@@ -141,18 +141,18 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
         return;
     }
 
-    this->host_name = strdup(host_name);
-    this->port = port;
-    this->connect_callback = std::move(connect_callback);
+    this->host_name                   = strdup(host_name);
+    this->port                        = port;
+    this->connect_callback            = std::move(connect_callback);
     this->pending_disconnect_callback = std::move(disconnect_callback);
 }
 
 void TFGenericTCPClient::disconnect()
 {
-    TFGenericTCPClientConnectCallback connect_callback = std::move(this->connect_callback);
+    TFGenericTCPClientConnectCallback connect_callback       = std::move(this->connect_callback);
     TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);
 
-    this->connect_callback = nullptr;
+    this->connect_callback    = nullptr;
     this->disconnect_callback = nullptr;
 
     close();
@@ -185,7 +185,7 @@ void TFGenericTCPClient::tick()
 
     if (host_name != nullptr && socket_fd < 0) {
         if (!resolve_pending && pending_host_address == 0 && pending_socket_fd < 0) {
-            resolve_pending = true;
+            resolve_pending             = true;
             uint32_t current_resolve_id = ++resolve_id;
 
             tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() resolving (host_name=%s current_resolve_id=%u)",
@@ -204,7 +204,7 @@ void TFGenericTCPClient::tick()
                     return;
                 }
 
-                resolve_pending = false;
+                resolve_pending      = false;
                 pending_host_address = host_address;
             });
         }
@@ -239,9 +239,10 @@ void TFGenericTCPClient::tick()
             struct sockaddr_in addr_in;
 
             memset(&addr_in, 0, sizeof(addr_in));
-            addr_in.sin_family = AF_INET;
             memcpy(&addr_in.sin_addr.s_addr, &pending_host_address, sizeof(pending_host_address));
-            addr_in.sin_port = htons(port);
+
+            addr_in.sin_family = AF_INET;
+            addr_in.sin_port   = htons(port);
 
             pending_host_address = 0;
 
@@ -263,7 +264,7 @@ void TFGenericTCPClient::tick()
         FD_SET(pending_socket_fd, &fdset);
 
         struct timeval tv;
-        tv.tv_sec = 0;
+        tv.tv_sec  = 0;
         tv.tv_usec = 0;
 
         int result = select(pending_socket_fd + 1, nullptr, &fdset, nullptr, &tv);
@@ -296,10 +297,10 @@ void TFGenericTCPClient::tick()
 
         TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
 
-        socket_fd = pending_socket_fd;
-        pending_socket_fd = -1;
-        connect_callback = nullptr;
-        disconnect_callback = std::move(pending_disconnect_callback);
+        socket_fd                   = pending_socket_fd;
+        pending_socket_fd           = -1;
+        connect_callback            = nullptr;
+        disconnect_callback         = std::move(pending_disconnect_callback);
         pending_disconnect_callback = nullptr;
 
         callback(TFGenericTCPClientConnectResult::Connected, -1);

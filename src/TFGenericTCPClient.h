@@ -36,13 +36,13 @@ enum class TFGenericTCPClientConnectResult
     NoFreePoolHandle,
     NestedConnect,
     AbortRequested,
-    ResolveFailed, // errno as received from resolve callback
-    SocketCreateFailed, // errno
-    SocketGetFlagsFailed, // errno
-    SocketSetFlagsFailed, // errno
-    SocketConnectFailed, // errno
-    SocketSelectFailed, // errno
-    SocketGetOptionFailed, // errno
+    ResolveFailed,            // errno as received from resolve callback
+    SocketCreateFailed,       // errno
+    SocketGetFlagsFailed,     // errno
+    SocketSetFlagsFailed,     // errno
+    SocketConnectFailed,      // errno
+    SocketSelectFailed,       // errno
+    SocketGetOptionFailed,    // errno
     SocketConnectAsyncFailed, // errno
     Timeout,
     Connected,
@@ -53,10 +53,10 @@ const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConn
 enum class TFGenericTCPClientDisconnectReason
 {
     Requested,
-    SocketSelectFailed, // errno
+    SocketSelectFailed,  // errno
     SocketReceiveFailed, // errno
-    SocketIoctlFailed, // errno
-    SocketSendFailed, // errno
+    SocketIoctlFailed,   // errno
+    SocketSendFailed,    // errno
     DisconnectedByPeer,
     ProtocolError,
 };
@@ -89,8 +89,8 @@ public:
     void tick();
 
 protected:
-    virtual void close_hook() = 0;
-    virtual void tick_hook() = 0;
+    virtual void close_hook()   = 0;
+    virtual void tick_hook()    = 0;
     virtual bool receive_hook() = 0;
 
     void close();
@@ -99,15 +99,15 @@ protected:
     void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 
     char *host_name = nullptr;
-    uint16_t port = 0;
+    uint16_t port   = 0;
     TFGenericTCPClientConnectCallback connect_callback;
     TFGenericTCPClientDisconnectCallback pending_disconnect_callback;
     TFGenericTCPClientDisconnectCallback disconnect_callback;
-    uint32_t connect_id = 0;
-    bool resolve_pending = false;
-    uint32_t resolve_id = 0;
+    uint32_t connect_id           = 0;
+    bool resolve_pending          = false;
+    uint32_t resolve_id           = 0;
     uint32_t pending_host_address = 0; // IPv4 only
-    int pending_socket_fd = -1;
-    uint32_t connect_deadline = 0;
-    int socket_fd = -1;
+    int pending_socket_fd         = -1;
+    uint32_t connect_deadline     = 0;
+    int socket_fd                 = -1;
 };

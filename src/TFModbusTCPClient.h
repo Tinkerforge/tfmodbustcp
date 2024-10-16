@@ -70,7 +70,7 @@ struct TFModbusTCPClientTransaction
     uint16_t start_address;
     uint16_t data_count;
     void *buffer;
-    uint32_t timeout; // milliseconds
+    int64_t timeout_us;
     TFModbusTCPClientTransactionCallback callback;
     TFModbusTCPClientTransaction *next;
 };
@@ -85,7 +85,7 @@ public:
               uint16_t start_address,
               uint16_t data_count,
               void *buffer,
-              uint32_t timeout, // milliseconds
+              int64_t timeout_us,
               TFModbusTCPClientTransactionCallback &&callback);
 
 private:
@@ -103,7 +103,7 @@ private:
     uint16_t next_transaction_id                             = 0;
     TFModbusTCPClientTransaction *pending_transaction        = nullptr;
     uint16_t pending_transaction_id                          = 0;
-    uint32_t pending_transaction_deadline                    = 0; // milliseconds
+    int64_t pending_transaction_deadline_us                  = 0;
     TFModbusTCPClientTransaction *scheduled_transaction_head = nullptr;
     TFModbusTCPResponse pending_response;
     size_t pending_response_header_used                      = 0;

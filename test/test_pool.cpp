@@ -8,10 +8,10 @@
 #include "../src/TFModbusTCPClient.h"
 #include "../src/TFModbusTCPClientPool.h"
 
-static uint32_t milliseconds()
+static int64_t microseconds()
 {
     struct timeval tv;
-    static uint32_t baseline_sec = 0;
+    static int64_t baseline_sec = 0;
 
     gettimeofday(&tv, nullptr);
 
@@ -19,7 +19,7 @@ static uint32_t milliseconds()
         baseline_sec = tv.tv_sec;
     }
 
-    return (tv.tv_sec - baseline_sec) * 1000 + tv.tv_usec / 1000;
+    return ((int64_t)tv.tv_sec - baseline_sec) * 1000000 + tv.tv_usec;
 }
 
 int main()
@@ -36,22 +36,22 @@ int main()
     TFGenericTCPClientPoolHandle *handle_ptr2 = nullptr;
 
     TFNetworkUtil::set_logln_callback([](const char *message) {
-        printf("%u | %s\n", milliseconds(), message);
+        printf("%lu | %s\n", microseconds(), message);
     });
 
-    TFNetworkUtil::set_milliseconds_callback(milliseconds);
+    TFNetworkUtil::set_microseconds_callback(microseconds);
 
     TFNetworkUtil::set_resolve_callback([&resolve_host_name, &resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
         resolve_host_name = strdup(host_name);
         resolve_callback = callback;
-        resolve_callback_time = milliseconds();
+        resolve_callback_time = microseconds();
     });
 
-    printf("%u | acquire1...\n", milliseconds());
+    printf("%lu | acquire1...\n", microseconds());
     pool.acquire("foobar", 502,
     [&pool, &handle_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
-        printf("%u | connect1 handle=%p: %s / %s (%d)\n",
-               milliseconds(),
+        printf("%lu | connect1 handle=%p: %s / %s (%d)\n",
+               microseconds(),
                handle,
                get_tf_generic_tcp_client_connect_result_name(result),
                strerror(error_number),
@@ -67,13 +67,13 @@ int main()
 
         pool.release(handle);
 #else
-        printf("%u | read1... handle=%p\n", milliseconds(), handle);
+        printf("%lu | read1... handle=%p\n", microseconds(), handle);
         handle->client->read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
                                 2,
                                 buffer1,
-                                1000,
+                                1000000,
                                 [&pool, handle, &buffer1, &running](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;
@@ -82,23 +82,23 @@ int main()
 
                                     c32.r[0] = buffer1[0];
                                     c32.r[1] = buffer1[1];
-                                    printf("%u | read1: %s (%d) [%u %u -> %f]\n",
-                                        milliseconds(),
+                                    printf("%lu | read1: %s (%d) [%u %u -> %f]\n",
+                                        microseconds(),
                                         get_tf_modbus_tcp_client_transaction_result_name(result),
                                         static_cast<int>(result),
                                         c32.r[0],
                                         c32.r[1],
                                         static_cast<double>(c32.f));
-                                printf("%u | release1 handle=%p\n",
-                                        milliseconds(),
+                                printf("%lu | release1 handle=%p\n",
+                                        microseconds(),
                                         handle);
                                 pool.release(handle);
                             });
 #endif
     },
     [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle) {
-        printf("%u | disconnect1 handle=%p: %s / %s (%d)\n",
-               milliseconds(),
+        printf("%lu | disconnect1 handle=%p: %s / %s (%d)\n",
+               microseconds(),
                handle,
                get_tf_generic_tcp_client_disconnect_reason_name(reason),
                strerror(error_number),
@@ -107,11 +107,11 @@ int main()
         --running;
     });
 
-    printf("%u | acquire2...\n", milliseconds());
+    printf("%lu | acquire2...\n", microseconds());
     pool.acquire("foobar", 502,
     [&pool, &handle_ptr2, &buffer2, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
-        printf("%u | connect2 handle=%p: %s / %s (%d)\n",
-               milliseconds(),
+        printf("%lu | connect2 handle=%p: %s / %s (%d)\n",
+               microseconds(),
                handle,
                get_tf_generic_tcp_client_connect_result_name(result),
                strerror(error_number),
@@ -124,13 +124,13 @@ int main()
             return;
         }
 
-        printf("%u | read2... handle=%p\n", milliseconds(), handle);
+        printf("%lu | read2... handle=%p\n", microseconds(), handle);
         static_cast<TFModbusTCPClient *>(handle->client)->read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
                                 2,
                                 buffer2,
-                                1000,
+                                1000000,
                                 [&pool, handle, &buffer2, &running](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;
@@ -139,22 +139,22 @@ int main()
 
                                     c32.r[0] = buffer2[0];
                                     c32.r[1] = buffer2[1];
-                                    printf("%u | read2: %s (%d) [%u %u -> %f]\n",
-                                        milliseconds(),
+                                    printf("%lu | read2: %s (%d) [%u %u -> %f]\n",
+                                        microseconds(),
                                         get_tf_modbus_tcp_client_transaction_result_name(result),
                                         static_cast<int>(result),
                                         c32.r[0],
                                         c32.r[1],
                                         static_cast<double>(c32.f));
-                                printf("%u | release2 handle=%p\n",
-                                        milliseconds(),
+                                printf("%lu | release2 handle=%p\n",
+                                        microseconds(),
                                         handle);
                                 pool.release(handle);
                             });
     },
     [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle) {
-        printf("%u | disconnect2 handle=%p: %s / %s (%d)\n",
-               milliseconds(),
+        printf("%lu | disconnect2 handle=%p: %s / %s (%d)\n",
+               microseconds(),
                handle,
                get_tf_generic_tcp_client_disconnect_reason_name(reason),
                strerror(error_number),
@@ -164,7 +164,7 @@ int main()
     });
 
     while (running > 0) {
-        if (resolve_host_name != nullptr && resolve_callback && resolve_callback_time + 1000 < milliseconds()) {
+        if (resolve_host_name != nullptr && resolve_callback && resolve_callback_time + 1000000 < microseconds()) {
             hostent *result = gethostbyname(resolve_host_name);
 
             free(resolve_host_name);

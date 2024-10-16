@@ -52,12 +52,12 @@ void TFNetworkUtil::logfln(const char *fmt, ...)
     logln_callback(buffer);
 }
 
-static uint32_t milliseconds_dummy()
+static int64_t microseconds_dummy()
 {
     return 0;
 }
 
-static TFNetworkUtilMillisecondsCallback milliseconds_callback = milliseconds_dummy;
+static TFNetworkUtilMicrosecondsCallback microseconds_callback = microseconds_dummy;
 
 static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
 {
@@ -68,40 +68,29 @@ static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallb
 
 static TFNetworkUtilResolveCallback resolve_callback = resolve_dummy;
 
-static bool a_after_b(uint32_t a, uint32_t b)
-{
-    return ((uint32_t)(a - b)) < (UINT32_MAX / 2);
-}
-
-void TFNetworkUtil::set_milliseconds_callback(std::function<uint32_t(void)> &&callback)
+void TFNetworkUtil::set_microseconds_callback(std::function<int64_t(void)> &&callback)
 {
     if (callback) {
-        milliseconds_callback = std::move(callback);
+        microseconds_callback = std::move(callback);
     }
     else {
-        milliseconds_callback = milliseconds_dummy;
+        microseconds_callback = microseconds_dummy;
     }
 }
 
-uint32_t TFNetworkUtil::milliseconds()
+int64_t TFNetworkUtil::microseconds()
 {
-    return milliseconds_callback();
+    return microseconds_callback();
 }
 
-bool TFNetworkUtil::deadline_elapsed(uint32_t deadline)
+bool TFNetworkUtil::deadline_elapsed(int64_t deadline_us)
 {
-    return a_after_b(milliseconds(), deadline);
+    return deadline_us < microseconds();
 }
 
-uint32_t TFNetworkUtil::calculate_deadline(uint32_t delay)
+int64_t TFNetworkUtil::calculate_deadline(int64_t delay_us)
 {
-    uint32_t deadline = milliseconds() + delay;
-
-    if (deadline == 0) {
-        deadline = 1;
-    }
-
-    return deadline;
+    return microseconds() + delay_us;
 }
 
 void TFNetworkUtil::set_resolve_callback(TFNetworkUtilResolveCallback &&callback)

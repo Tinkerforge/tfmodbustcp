@@ -25,8 +25,8 @@
 #include <functional>
 
 // configuration
-#define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION 10 // milliseconds
-#define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT 3000 // milliseconds
+#define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION_US 10000
+#define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT_US 3000000
 #define TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES 10
 
 enum class TFGenericTCPClientConnectResult
@@ -108,6 +108,6 @@ protected:
     uint32_t resolve_id           = 0;
     uint32_t pending_host_address = 0; // IPv4 only
     int pending_socket_fd         = -1;
-    uint32_t connect_deadline     = 0;
+    int64_t connect_deadline_us   = 0;
     int socket_fd                 = -1;
 };

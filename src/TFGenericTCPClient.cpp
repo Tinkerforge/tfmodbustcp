@@ -149,6 +149,10 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
 
 void TFGenericTCPClient::disconnect()
 {
+    if (this->host_name == nullptr) {
+        return;
+    }
+
     TFGenericTCPClientConnectCallback connect_callback       = std::move(this->connect_callback);
     TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);
 

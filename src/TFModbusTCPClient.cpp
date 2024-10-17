@@ -26,11 +26,6 @@
 
 #include "TFNetworkUtil.h"
 
-static inline uint16_t swap_16(uint16_t value)
-{
-    return (value >> 8) | (value << 8);
-}
-
 const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTransactionResult result)
 {
     switch (result) {
@@ -225,14 +220,14 @@ void TFModbusTCPClient::tick_hook()
         TFModbusTCPRequest request;
         size_t payload_length = offsetof(TFModbusTCPRequestPayload, byte_count);
 
-        request.header.transaction_id = swap_16(pending_transaction_id);
-        request.header.protocol_id    = swap_16(0);
-        request.header.frame_length   = swap_16(TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH + payload_length);
+        request.header.transaction_id = htons(pending_transaction_id);
+        request.header.protocol_id    = htons(0);
+        request.header.frame_length   = htons(TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH + payload_length);
         request.header.unit_id        = pending_transaction->unit_id;
 
         request.payload.function_code = pending_transaction->function_code;
-        request.payload.start_address = swap_16(pending_transaction->start_address);
-        request.payload.data_count    = swap_16(pending_transaction->data_count);
+        request.payload.start_address = htons(pending_transaction->start_address);
+        request.payload.data_count    = htons(pending_transaction->data_count);
 
         if (!send(request.bytes, sizeof(request.header) + payload_length)) {
             int saved_errno = errno;
@@ -269,9 +264,9 @@ bool TFModbusTCPClient::receive_hook()
     }
 
     if (!pending_response_header_checked) {
-        pending_response.header.transaction_id = swap_16(pending_response.header.transaction_id);
-        pending_response.header.protocol_id    = swap_16(pending_response.header.protocol_id);
-        pending_response.header.frame_length   = swap_16(pending_response.header.frame_length);
+        pending_response.header.transaction_id = ntohs(pending_response.header.transaction_id);
+        pending_response.header.protocol_id    = ntohs(pending_response.header.protocol_id);
+        pending_response.header.frame_length   = ntohs(pending_response.header.frame_length);
 
         if (pending_response.header.protocol_id != 0) {
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
@@ -411,7 +406,7 @@ bool TFModbusTCPClient::receive_hook()
             uint16_t *buffer = static_cast<uint16_t *>(pending_transaction->buffer);
 
             for (size_t i = 0; i < pending_transaction->data_count; ++i) {
-                buffer[i] = swap_16(pending_response.payload.register_values[i]);
+                buffer[i] = ntohs(pending_response.payload.register_values[i]);
             }
         }
     }

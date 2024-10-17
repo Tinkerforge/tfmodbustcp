@@ -213,10 +213,8 @@ void TFGenericTCPClientPool::tick()
             slot->client->tick();
         }
         else {
-            const char *host_name = slot->client->get_host_name();
-
             tf_network_util_debugfln("TFGenericTCPClientPool[%p]::tick() deleting inactive client (slot=%zu client=%p host_name=%s port=%u)",
-                                     (void *)this, i, slot->client, host_name != nullptr ? host_name : "[nullptr]", slot->client->get_port());
+                                     static_cast<void *>(this), i, static_cast<void *>(slot->client), TFNetworkUtil::printf_safe(slot->client->get_host_name()), slot->client->get_port());
 
             slots[i] = nullptr;
             slot->client->disconnect();

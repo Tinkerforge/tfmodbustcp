@@ -47,4 +47,6 @@ public:
 
     static void set_resolve_callback(TFNetworkUtilResolveCallback &&callback);
     static void resolve(const char *host_name, TFNetworkUtilResolveResultCallback &&callback);
+
+    static const char *printf_safe(const char *string);
 };

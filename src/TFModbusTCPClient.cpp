@@ -341,6 +341,9 @@ bool TFModbusTCPClient::receive_hook()
     }
 
     if (pending_transaction->function_code != (pending_response.payload.function_code & 0x7F)) {
+        tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() function code mismatch (pending_transaction->function_code=0x%02x pending_response.payload.function_code=0x%02x)",
+                                 static_cast<void *>(this), pending_transaction->function_code, pending_response.payload.function_code);
+
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseFunctionCodeMismatch);
         return true;

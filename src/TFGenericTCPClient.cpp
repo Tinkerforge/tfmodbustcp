@@ -127,6 +127,9 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
                                  TFGenericTCPClientConnectCallback &&connect_callback,
                                  TFGenericTCPClientDisconnectCallback &&disconnect_callback)
 {
+    tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u)",
+                             static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+
     if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1);
         return;
@@ -152,6 +155,9 @@ void TFGenericTCPClient::disconnect()
     if (this->host_name == nullptr) {
         return;
     }
+
+    tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() (host_name=%s port=%u)",
+                             static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
 
     TFGenericTCPClientConnectCallback connect_callback       = std::move(this->connect_callback);
     TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);

@@ -107,3 +107,8 @@ void TFNetworkUtil::resolve(const char *host_name, TFNetworkUtilResolveResultCal
 {
     resolve_callback(host_name, std::move(callback));
 }
+
+const char *TFNetworkUtil::printf_safe(const char *string)
+{
+    return string != nullptr ? string : "[nullptr]";
+}

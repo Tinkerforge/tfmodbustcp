@@ -29,7 +29,7 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
 {
     ssize_t slot_index = -1;
 
-    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u)", (void *)this, host_name, port);
+    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u)", static_cast<void *>(this), host_name, port);
 
     for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT; ++i) {
         TFGenericTCPClientPoolSlot *slot = slots[i];
@@ -49,13 +49,13 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
         }
 
         tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) checking existing client (slot=%zu client=%p host_name=%s port=%u)",
-                                 (void *)this, host_name, port, i, slot->client, slot_host_name, slot->client->get_port());
+                                 static_cast<void *>(this), host_name, port, i, static_cast<void *>(slot->client), slot_host_name, slot->client->get_port());
 
         if (strcmp(slot_host_name, host_name) == 0 && slot->client->get_port() == port) {
             ssize_t handle_index = -1;
 
             tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) found matching existing client (slot=%zu client=%p)",
-                                     (void *)this, host_name, port, i, slot->client);
+                                     static_cast<void *>(this), host_name, port, i, static_cast<void *>(slot->client));
 
             for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_HANDLE_COUNT; ++k) {
                 if (slot->handles[k] == nullptr) {
@@ -98,7 +98,7 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
     slots[slot_index] = slot;
 
     tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) creating new client (slot=%zu client=%p)",
-                             (void *)this, host_name, port, slot_index, slot->client);
+                             static_cast<void *>(this), host_name, port, slot_index, static_cast<void *>(slot->client));
 
     TFGenericTCPClientPoolHandle *handle = new TFGenericTCPClientPoolHandle;
     handle->client = slot->client;

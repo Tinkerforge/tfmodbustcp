@@ -19,7 +19,7 @@ static int64_t microseconds()
         baseline_sec = tv.tv_sec;
     }
 
-    return ((int64_t)tv.tv_sec - baseline_sec) * 1000000 + tv.tv_usec;
+    return (static_cast<int64_t>(tv.tv_sec) - baseline_sec) * 1000000 + tv.tv_usec;
 }
 
 int main()
@@ -52,7 +52,7 @@ int main()
     [&pool, &handle_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | connect1 handle=%p: %s / %s (%d)\n",
                microseconds(),
-               handle,
+               static_cast<void *>(handle),
                get_tf_generic_tcp_client_connect_result_name(result),
                strerror(error_number),
                error_number);
@@ -99,7 +99,7 @@ int main()
     [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | disconnect1 handle=%p: %s / %s (%d)\n",
                microseconds(),
-               handle,
+               static_cast<void *>(handle),
                get_tf_generic_tcp_client_disconnect_reason_name(reason),
                strerror(error_number),
                error_number);
@@ -112,7 +112,7 @@ int main()
     [&pool, &handle_ptr2, &buffer2, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | connect2 handle=%p: %s / %s (%d)\n",
                microseconds(),
-               handle,
+               static_cast<void *>(handle),
                get_tf_generic_tcp_client_connect_result_name(result),
                strerror(error_number),
                error_number);
@@ -147,15 +147,15 @@ int main()
                                         c32.r[1],
                                         static_cast<double>(c32.f));
                                 printf("%lu | release2 handle=%p\n",
-                                        microseconds(),
-                                        handle);
+                                       microseconds(),
+                                       static_cast<void *>(handle);
                                 pool.release(handle);
                             });
     },
     [&running](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | disconnect2 handle=%p: %s / %s (%d)\n",
                microseconds(),
-               handle,
+               static_cast<void *>(handle),
                get_tf_generic_tcp_client_disconnect_reason_name(reason),
                strerror(error_number),
                error_number);

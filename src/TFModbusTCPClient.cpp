@@ -377,7 +377,7 @@ bool TFModbusTCPClient::receive_hook()
 
     if (expected_byte_count != pending_response.payload.byte_count) {
         tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() byte count mismatch (expected_byte_count=%u pending_payload.byte_count=%u pending_header.frame_length=%u)",
-                                 (void *)this, expected_byte_count, pending_response.payload.byte_count, pending_response.header.frame_length);
+                                 static_cast<void *>(this), expected_byte_count, pending_response.payload.byte_count, pending_response.header.frame_length);
 
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseRegisterCountMismatch);
@@ -393,7 +393,7 @@ bool TFModbusTCPClient::receive_hook()
 
     if (pending_response_payload_used > TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count) {
         tf_network_util_debugfln("TFModbusTCPClient[%p]::receive_hook() accepting excess payload (excess_payload_length=%zu)",
-                                 (void *)this, pending_response_payload_used - (TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count));
+                                 static_cast<void *>(this), pending_response_payload_used - (TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count));
     }
 
     if (pending_transaction->buffer != nullptr) {

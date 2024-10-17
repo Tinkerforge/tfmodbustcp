@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stddef.h>
+#include <sys/types.h>
 #include <lwip/sockets.h>
 
 #include "TFNetworkUtil.h"

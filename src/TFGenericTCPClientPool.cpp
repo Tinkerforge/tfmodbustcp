@@ -21,6 +21,8 @@
 
 #include "TFNetworkUtil.h"
 
+#include <sys/types.h>
+
 void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
                                      TFGenericTCPClientPoolConnectCallback &&connect_callback,
                                      TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback)

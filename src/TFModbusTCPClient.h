@@ -22,6 +22,8 @@
 #include "TFGenericTCPClient.h"
 #include "TFModbusTCPCommon.h"
 
+#include <sys/types.h>
+
 // configuration
 #define TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT 8
 

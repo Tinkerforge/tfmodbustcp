@@ -20,3 +20,4 @@
 #pragma once
 
 #include "TFModbusTCPClient.h"
+#include "TFModbusTCPServer.h"

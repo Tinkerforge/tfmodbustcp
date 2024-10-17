@@ -52,6 +52,10 @@ static_assert(offsetof(TFModbusTCPResponsePayload, data_value)      == 3, "TFMod
 static_assert(offsetof(TFModbusTCPResponsePayload, data_count)      == 3, "TFModbusTCPResponsePayload::data_count has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, bytes)           == 0, "TFModbusTCPResponsePayload::bytes has unexpected offset");
 
+static_assert(sizeof(TFModbusTCPResponse) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH, "TFModbusTCPResponse has unexpected size");
+static_assert(offsetof(TFModbusTCPResponse, header)  == 0, "TFModbusTCPResponse::header has unexpected offset");
+static_assert(offsetof(TFModbusTCPResponse, payload) == 7, "TFModbusTCPResponse::payload has unexpected offset");
+
 const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type)
 {
     switch (data_type) {
@@ -97,6 +101,43 @@ const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode functio
 
     case TFModbusTCPFunctionCode::WriteMultipleRegisters:
         return "WriteMultipleRegisters";
+    }
+
+    return "Unknown";
+}
+
+const char *get_tf_modbus_tcp_exception_code_name(TFModbusTCPExceptionCode exception_code)
+{
+    switch (exception_code) {
+    case TFModbusTCPExceptionCode::Success:
+        return "Success";
+
+    case TFModbusTCPExceptionCode::IllegalFunction:
+        return "IllegalFunction";
+
+    case TFModbusTCPExceptionCode::IllegalDataAddress:
+        return "IllegalDataAddress";
+
+    case TFModbusTCPExceptionCode::IllegalDataValue:
+        return "IllegalDataValue";
+
+    case TFModbusTCPExceptionCode::ServerDeviceFailure:
+        return "ServerDeviceFailure";
+
+    case TFModbusTCPExceptionCode::Acknowledge:
+        return "Acknowledge";
+
+    case TFModbusTCPExceptionCode::ServerDeviceBusy:
+        return "ServerDeviceBusy";
+
+    case TFModbusTCPExceptionCode::MemoryParityError:
+        return "MemoryParityError";
+
+    case TFModbusTCPExceptionCode::GatewayPathUnvailable:
+        return "GatewayPathUnvailable";
+
+    case TFModbusTCPExceptionCode::GatewayTargetDeviceFailedToRespond:
+        return "GatewayTargetDeviceFailedToRespond";
     }
 
     return "Unknown";

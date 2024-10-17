@@ -1,8 +1,28 @@
+/* TFModbusTCP
+ * Copyright (C) 2024 Matthias Bolte <matthias@tinkerforge.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <Arduino.h>
 #include "../src/TFNetworkUtil.h"
 #include "../src/TFModbusTCPClient.h"
@@ -48,8 +68,8 @@ int main()
     });
 
     printf("%lu | acquire1...\n", microseconds());
-    pool.acquire("foobar", 502,
-    [&pool, &handle_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
+    pool.acquire("localhost", 502,
+    [&pool, &handle_ptr1, &buffer1/*, &running*/](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | connect1 handle=%p: %s / %s (%d)\n",
                microseconds(),
                static_cast<void *>(handle),
@@ -68,13 +88,13 @@ int main()
         pool.release(handle);
 #else
         printf("%lu | read1... handle=%p\n", microseconds(), handle);
-        handle->client->read(TFModbusTCPDataType::InputRegister,
+        static_cast<TFModbusTCPClient *>(handle->client)->read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
                                 2,
                                 buffer1,
                                 1000000,
-                                [&pool, handle, &buffer1, &running](TFModbusTCPClientTransactionResult result) {
+                                [&pool, handle, &buffer1](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;
                                         uint16_t r[2];
@@ -108,7 +128,7 @@ int main()
     });
 
     printf("%lu | acquire2...\n", microseconds());
-    pool.acquire("foobar", 502,
+    pool.acquire("localhost", 502,
     [&pool, &handle_ptr2, &buffer2, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | connect2 handle=%p: %s / %s (%d)\n",
                microseconds(),
@@ -124,14 +144,14 @@ int main()
             return;
         }
 
-        printf("%lu | read2... handle=%p\n", microseconds(), handle);
+        printf("%lu | read2... handle=%p\n", microseconds(), static_cast<void *>(handle));
         static_cast<TFModbusTCPClient *>(handle->client)->read(TFModbusTCPDataType::InputRegister,
                                 1,
                                 1013,
                                 2,
                                 buffer2,
                                 1000000,
-                                [&pool, handle, &buffer2, &running](TFModbusTCPClientTransactionResult result) {
+                                [&pool, handle, &buffer2](TFModbusTCPClientTransactionResult result) {
                                     union {
                                         float f;
                                         uint16_t r[2];
@@ -181,6 +201,7 @@ int main()
         }
 
         pool.tick();
+        usleep(100);
     }
 
     pool.tick();

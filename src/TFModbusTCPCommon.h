@@ -63,6 +63,24 @@ enum class TFModbusTCPFunctionCode : uint8_t
     WriteMultipleRegisters = 16,
 };
 
+const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode function_code);
+
+enum class TFModbusTCPExceptionCode : uint8_t
+{
+    Success                            = 0,
+    IllegalFunction                    = 0x01,
+    IllegalDataAddress                 = 0x02,
+    IllegalDataValue                   = 0x03,
+    ServerDeviceFailure                = 0x04,
+    Acknowledge                        = 0x05,
+    ServerDeviceBusy                   = 0x06,
+    MemoryParityError                  = 0x08,
+    GatewayPathUnvailable              = 0x0A,
+    GatewayTargetDeviceFailedToRespond = 0x0B,
+};
+
+const char *get_tf_modbus_tcp_exception_code_name(TFModbusTCPExceptionCode exception_code);
+
 #if defined(__GNUC__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wattributes"
@@ -78,10 +96,6 @@ union TFModbusTCPHeader
     };
     uint8_t bytes[TF_MODBUS_TCP_HEADER_LENGTH];
 };
-
-#if defined(__GNUC__)
-    #pragma GCC diagnostic pop
-#endif
 
 union TFModbusTCPRequestPayload
 {
@@ -142,6 +156,7 @@ union TFModbusTCPResponsePayload
                                                                                      // Read Discrete Inputs (2)
                     uint16_t register_values[TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT]; // Read Holding Registers (3),
                                                                                      // Read Input Registers (4)
+                    uint8_t exception_sentinel;                                      // Not part of the actual protocol, there for offsetof() calculations
                 };
             };
             struct [[gnu::packed]] {
@@ -154,8 +169,22 @@ union TFModbusTCPResponsePayload
                     uint16_t data_count; // Write Multiple Coils (15),
                                          // Write Multiple Registers (16)
                 };
+                uint8_t write_sentinel;  // Not part of the actual protocol, there for offsetof() calculations
             };
         };
     };
     uint8_t bytes[TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH];
 };
+
+union TFModbusTCPResponse
+{
+    struct [[gnu::packed]] {
+        TFModbusTCPHeader header;
+        TFModbusTCPResponsePayload payload;
+    };
+    uint8_t bytes[TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH];
+};
+
+#if defined(__GNUC__)
+    #pragma GCC diagnostic pop
+#endif

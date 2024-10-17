@@ -51,7 +51,7 @@ class TFGenericTCPClientPool
 {
 public:
     TFGenericTCPClientPool() { memset(slots, 0, sizeof(slots)); }
-    virtual ~TFGenericTCPClientPool() {};
+    virtual ~TFGenericTCPClientPool() {}
 
     void acquire(const char *host_name, uint16_t port,
                  TFGenericTCPClientPoolConnectCallback &&connect_callback,

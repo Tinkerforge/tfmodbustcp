@@ -78,7 +78,7 @@ struct TFModbusTCPClientTransaction
 class TFModbusTCPClient final : public TFGenericTCPClient
 {
 public:
-    TFModbusTCPClient() {};
+    TFModbusTCPClient() {}
 
     void read(TFModbusTCPDataType data_type,
               uint8_t unit_id,

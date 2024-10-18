@@ -23,65 +23,36 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-static void logln_dummy(const char *message)
+const char *TFNetworkUtil::printf_safe(const char *string)
 {
-    (void)message;
+    return string != nullptr ? string : "[nullptr]";
 }
 
-static TFNetworkUtilLoglnCallback logln_callback = logln_dummy;
-
-void TFNetworkUtil::set_logln_callback(TFNetworkUtilLoglnCallback &&callback)
+static void vlogfln_dummy(const char *fmt, va_list args)
 {
-    if (callback) {
-        logln_callback = std::move(callback);
-    }
-    else {
-        logln_callback = logln_dummy;
-    }
+    (void)fmt;
+    (void)args;
 }
+
+TFNetworkUtilVLogFLnFunction TFNetworkUtil::vlogfln = vlogfln_dummy;
 
 void TFNetworkUtil::logfln(const char *fmt, ...)
 {
-    char buffer[512];
     va_list args;
 
     va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    vlogfln(fmt, args);
     va_end(args);
-
-    logln_callback(buffer);
 }
 
 static int64_t microseconds_dummy()
 {
+    abort();
+
     return 0;
 }
 
-static TFNetworkUtilMicrosecondsCallback microseconds_callback = microseconds_dummy;
-
-static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
-{
-    (void)host_name;
-
-    callback(0, ENOSYS);
-}
-
-static TFNetworkUtilResolveCallback resolve_callback = resolve_dummy;
-
-void TFNetworkUtil::set_microseconds_callback(std::function<int64_t(void)> &&callback)
-{
-    if (callback) {
-        microseconds_callback = std::move(callback);
-    }
-    else {
-        microseconds_callback = microseconds_dummy;
-    }
-}
-
-int64_t TFNetworkUtil::microseconds()
-{
-    return microseconds_callback();
-}
+TFNetworkUtilMicrosecondsFunction TFNetworkUtil::microseconds = microseconds_dummy;
 
 bool TFNetworkUtil::deadline_elapsed(int64_t deadline_us)
 {
@@ -93,22 +64,11 @@ int64_t TFNetworkUtil::calculate_deadline(int64_t delay_us)
     return microseconds() + delay_us;
 }
 
-void TFNetworkUtil::set_resolve_callback(TFNetworkUtilResolveCallback &&callback)
+static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
 {
-    if (callback) {
-        resolve_callback = std::move(callback);
-    }
-    else {
-        resolve_callback = resolve_dummy;
-    }
+    (void)host_name;
+
+    callback(0, ENOSYS);
 }
 
-void TFNetworkUtil::resolve(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
-{
-    resolve_callback(host_name, std::move(callback));
-}
-
-const char *TFNetworkUtil::printf_safe(const char *string)
-{
-    return string != nullptr ? string : "[nullptr]";
-}
+TFNetworkUtilResolveFunction TFNetworkUtil::resolve = resolve_dummy;

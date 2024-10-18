@@ -66,18 +66,21 @@ int main()
 
     signal(SIGINT, sigint_handler);
 
-    TFNetworkUtil::set_logln_callback([](const char *message) {
-        printf("%lu | %s\n", microseconds(), message);
-    });
+    TFNetworkUtil::vlogfln =
+    [](const char *format, va_list args) {
+        printf("%lu | ", microseconds());
+        vprintf(format, args);
+        puts("");
+    };
 
-    TFNetworkUtil::set_microseconds_callback(microseconds);
+    TFNetworkUtil::microseconds = microseconds;
 
-    TFNetworkUtil::set_resolve_callback(
+    TFNetworkUtil::resolve =
     [&resolve_host_name, &resolve_callback, &resolve_callback_time_us](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
         resolve_host_name = strdup(host_name);
         resolve_callback = std::move(callback);
         resolve_callback_time_us = microseconds();
-    });
+    };
 
     printf("%lu | connect...\n", microseconds());
     client.connect("localhost", 502,

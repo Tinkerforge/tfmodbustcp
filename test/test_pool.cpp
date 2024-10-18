@@ -55,17 +55,21 @@ int main()
     TFGenericTCPClientPoolHandle *handle_ptr1 = nullptr;
     TFGenericTCPClientPoolHandle *handle_ptr2 = nullptr;
 
-    TFNetworkUtil::set_logln_callback([](const char *message) {
-        printf("%lu | %s\n", microseconds(), message);
-    });
+    TFNetworkUtil::vlogfln =
+    [](const char *format, va_list args) {
+        printf("%lu | ", microseconds());
+        vprintf(format, args);
+        puts("");
+    };
 
-    TFNetworkUtil::set_microseconds_callback(microseconds);
+    TFNetworkUtil::microseconds = microseconds;
 
-    TFNetworkUtil::set_resolve_callback([&resolve_host_name, &resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+    TFNetworkUtil::resolve =
+    [&resolve_host_name, &resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
         resolve_host_name = strdup(host_name);
         resolve_callback = callback;
         resolve_callback_time = microseconds();
-    });
+    };
 
     printf("%lu | acquire1...\n", microseconds());
     pool.acquire("localhost", 502,

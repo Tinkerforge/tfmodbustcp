@@ -57,11 +57,14 @@ int main()
 
     signal(SIGINT, sigint_handler);
 
-    TFNetworkUtil::set_logln_callback([](const char *message) {
-        printf("%lu | %s\n", microseconds(), message);
-    });
+    TFNetworkUtil::vlogfln =
+    [](const char *format, va_list args) {
+        printf("%lu | ", microseconds());
+        vprintf(format, args);
+        puts("");
+    };
 
-    TFNetworkUtil::set_microseconds_callback(microseconds);
+    TFNetworkUtil::microseconds = microseconds;
 
     server.start(0, 502,
     [](uint32_t peer_address, uint16_t port) {

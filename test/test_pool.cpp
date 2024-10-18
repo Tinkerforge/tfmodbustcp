@@ -69,7 +69,7 @@ int main()
 
     printf("%lu | acquire1...\n", microseconds());
     pool.acquire("localhost", 502,
-    [&pool, &handle_ptr1, &buffer1/*, &running*/](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
+    [&pool, &handle_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle) {
         printf("%lu | connect1 handle=%p: %s / %s (%d)\n",
                microseconds(),
                static_cast<void *>(handle),
@@ -168,7 +168,7 @@ int main()
                                         static_cast<double>(c32.f));
                                 printf("%lu | release2 handle=%p\n",
                                        microseconds(),
-                                       static_cast<void *>(handle);
+                                       static_cast<void *>(handle));
                                 pool.release(handle);
                             });
     },

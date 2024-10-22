@@ -155,6 +155,7 @@ void TFModbusTCPServer::stop()
     tf_network_util_debugfln("TFModbusTCPServer[%p]::stop()",
                              static_cast<void *>(this));
 
+    shutdown(server_fd, SHUT_RDWR);
     close(server_fd);
     server_fd = -1;
 
@@ -236,6 +237,7 @@ void TFModbusTCPServer::tick()
             tf_network_util_debugfln("TFModbusTCPClient[%p]::tick() no free client for connection (socket_fd=%d peer_address=%u port=%u)",
                                     static_cast<void *>(this), socket_fd, peer_address, port);
 
+            shutdown(socket_fd, SHUT_RDWR);
             close(socket_fd);
             disconnect_callback(peer_address, port, TFModbusTCPServerDisconnectReason::NoFreeClient, -1);
         }
@@ -599,6 +601,7 @@ void TFModbusTCPServer::disconnect(TFModbusTCPServerClient *client, TFModbusTCPS
         port         = ntohs(addr_in.sin_port);
     }
 
+    shutdown(client->socket_fd, SHUT_RDWR);
     close(client->socket_fd);
     disconnect_callback(peer_address, port, reason, error_number);
     delete client;

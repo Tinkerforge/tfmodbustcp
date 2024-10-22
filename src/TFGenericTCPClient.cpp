@@ -331,11 +331,13 @@ void TFGenericTCPClient::tick()
 void TFGenericTCPClient::close()
 {
     if (pending_socket_fd >= 0) {
+        ::shutdown(pending_socket_fd, SHUT_RDWR);
         ::close(pending_socket_fd);
         pending_socket_fd = -1;
     }
 
     if (socket_fd >= 0) {
+        ::shutdown(socket_fd, SHUT_RDWR);
         ::close(socket_fd);
         socket_fd = -1;
     }

@@ -110,3 +110,23 @@ private:
     bool pending_response_header_checked                     = false;
     size_t pending_response_payload_used                     = 0;
 };
+
+class TFModbusTCPSharedClient final : public TFGenericTCPSharedClient
+{
+public:
+    TFModbusTCPSharedClient(TFModbusTCPClient *client_) : TFGenericTCPSharedClient(client_), client(client_) {}
+
+    void read(TFModbusTCPDataType data_type,
+              uint8_t unit_id,
+              uint16_t start_address,
+              uint16_t data_count,
+              void *buffer,
+              int64_t timeout_us,
+              TFModbusTCPClientTransactionCallback &&callback)
+    {
+        client->read(data_type, unit_id, start_address, data_count, buffer, timeout_us, std::move(callback));
+    }
+
+private:
+    TFModbusTCPClient *client;
+};

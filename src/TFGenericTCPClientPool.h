@@ -21,18 +21,15 @@
 
 #include "TFGenericTCPClient.h"
 
-#define TF_GENERIC_TCP_CLIENT_POOL_MAX_HANDLE_COUNT 8
 #define TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT 8
+#define TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT 8
 
-struct TFGenericTCPClientPoolHandle;
+typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *shared_client)> TFGenericTCPClientPoolConnectCallback;
+typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *shared_client)> TFGenericTCPClientPoolDisconnectCallback;
 
-typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPClientPoolHandle *handle)> TFGenericTCPClientPoolConnectCallback;
-typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPClientPoolHandle *handle)> TFGenericTCPClientPoolDisconnectCallback;
-
-struct TFGenericTCPClientPoolHandle
+struct TFGenericTCPClientPoolShare
 {
-    bool pending_release = false;
-    TFGenericTCPClient *client;
+    TFGenericTCPSharedClient *shared_client;
     TFGenericTCPClientPoolConnectCallback connect_callback;
     TFGenericTCPClientPoolDisconnectCallback pending_disconnect_callback;
     TFGenericTCPClientPoolDisconnectCallback disconnect_callback;
@@ -40,11 +37,12 @@ struct TFGenericTCPClientPoolHandle
 
 struct TFGenericTCPClientPoolSlot
 {
-    TFGenericTCPClientPoolSlot() { memset(handles, 0, sizeof(handles)); }
+    TFGenericTCPClientPoolSlot() { memset(shares, 0, sizeof(shares)); }
 
     uint32_t id;
-    TFGenericTCPClient *client;
-    TFGenericTCPClientPoolHandle *handles[TF_GENERIC_TCP_CLIENT_POOL_MAX_HANDLE_COUNT];
+    bool delete_pending = false;
+    TFGenericTCPClient *client = nullptr;
+    TFGenericTCPClientPoolShare *shares[TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT];
 };
 
 class TFGenericTCPClientPool
@@ -58,14 +56,18 @@ public:
 
     void acquire(const char *host_name, uint16_t port,
                  TFGenericTCPClientPoolConnectCallback &&connect_callback,
-                 TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback);
-    void release(TFGenericTCPClientPoolHandle *handle);
-    void tick();
+                 TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback); // non-reentrant
+    void release(TFGenericTCPSharedClient *shared_client); // non-reentrant
+    void tick(); // non-reentrant
 
 protected:
-    virtual TFGenericTCPClient *new_client() = 0;
+    virtual TFGenericTCPClient *create_client() = 0;
+    virtual TFGenericTCPSharedClient *create_shared_client(TFGenericTCPClient *client) = 0;
 
 private:
+    void release(size_t slot_index, size_t share_index, bool disconnect);
+
+    bool non_reentrant    = false;
     uint32_t next_slot_id = 0;
     TFGenericTCPClientPoolSlot *slots[TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT];
 };

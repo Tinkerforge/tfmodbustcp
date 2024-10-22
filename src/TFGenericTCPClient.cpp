@@ -27,6 +27,16 @@
 
 #include "TFNetworkUtil.h"
 
+class NonReentrantScope
+{
+public:
+    NonReentrantScope(bool *non_reentrant_) : non_reentrant(non_reentrant_) { *non_reentrant = true; }
+    ~NonReentrantScope() { *non_reentrant = false; }
+
+private :
+    bool *non_reentrant;
+};
+
 const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result)
 {
     switch (result) {
@@ -36,11 +46,14 @@ const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConn
     case TFGenericTCPClientConnectResult::NoFreePoolSlot:
         return "NoFreePoolSlot";
 
-    case TFGenericTCPClientConnectResult::NoFreePoolHandle:
-        return "NoFreePoolHandle";
+    case TFGenericTCPClientConnectResult::NoFreePoolShare:
+        return "NoFreePoolShare";
 
-    case TFGenericTCPClientConnectResult::NestedConnect:
-        return "NestedConnect";
+    case TFGenericTCPClientConnectResult::NonReentrant:
+        return "NonReentrant";
+
+    case TFGenericTCPClientConnectResult::AlreadyConnected:
+        return "AlreadyConnected";
 
     case TFGenericTCPClientConnectResult::AbortRequested:
         return "AbortRequested";
@@ -74,6 +87,22 @@ const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConn
 
     case TFGenericTCPClientConnectResult::Connected:
         return "Connected";
+    }
+
+    return "Unknown";
+}
+
+const char *get_tf_generic_tcp_client_disconnect_result_name(TFGenericTCPClientDisconnectResult result)
+{
+    switch (result) {
+    case TFGenericTCPClientDisconnectResult::NonReentrant:
+        return "NonReentrant";
+
+    case TFGenericTCPClientDisconnectResult::NotConnected:
+        return "NotConnected";
+
+    case TFGenericTCPClientDisconnectResult::Disconnected:
+        return "Disconnected";
     }
 
     return "Unknown";
@@ -123,26 +152,36 @@ const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientC
     return "Unknown";
 }
 
+// non-reentrant
 void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
                                  TFGenericTCPClientConnectCallback &&connect_callback,
                                  TFGenericTCPClientDisconnectCallback &&disconnect_callback)
 {
-    tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u)",
-                             static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+    if (non_reentrant) {
+        tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) non-reentrant",
+                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1);
+        return;
+    }
+
+    NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
+        tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) invalid argument",
+                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1);
         return;
     }
 
-    uint32_t current_connect_id = ++connect_id;
-
-    disconnect();
-
-    if (current_connect_id != connect_id) {
-        connect_callback(TFGenericTCPClientConnectResult::NestedConnect, -1);
+    if (this->host_name != nullptr) {
+        tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) already connected",
+                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        connect_callback(TFGenericTCPClientConnectResult::AlreadyConnected, -1);
         return;
     }
+
+    tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) pending",
+                             static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
 
     this->host_name                   = strdup(host_name);
     this->port                        = port;
@@ -150,13 +189,23 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
     this->pending_disconnect_callback = std::move(disconnect_callback);
 }
 
-void TFGenericTCPClient::disconnect()
+// non-reentrant
+TFGenericTCPClientDisconnectResult TFGenericTCPClient::disconnect()
 {
-    if (this->host_name == nullptr) {
-        return;
+    if (non_reentrant) {
+        tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() non-reentrant (host_name=%s port=%u)",
+                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        return TFGenericTCPClientDisconnectResult::NonReentrant;
     }
 
-    tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() (host_name=%s port=%u)",
+    NonReentrantScope scope(&non_reentrant);
+
+    if (host_name == nullptr) {
+        tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() not connected", static_cast<void *>(this));
+        return TFGenericTCPClientDisconnectResult::NotConnected;
+    }
+
+    tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() disconnecting (host_name=%s port=%u)",
                              static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
 
     TFGenericTCPClientConnectCallback connect_callback       = std::move(this->connect_callback);
@@ -174,6 +223,8 @@ void TFGenericTCPClient::disconnect()
     if (disconnect_callback) {
         disconnect_callback(TFGenericTCPClientDisconnectReason::Requested, -1);
     }
+
+    return TFGenericTCPClientDisconnectResult::Disconnected;
 }
 
 TFGenericTCPClientConnectionStatus TFGenericTCPClient::get_connection_status() const
@@ -189,8 +240,16 @@ TFGenericTCPClientConnectionStatus TFGenericTCPClient::get_connection_status() c
     return TFGenericTCPClientConnectionStatus::Disconnected;
 }
 
+// non-reentrant
 void TFGenericTCPClient::tick()
 {
+    if (non_reentrant) {
+        tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() non-reentrant", static_cast<void *>(this));
+        return;
+    }
+
+    NonReentrantScope scope(&non_reentrant);
+
     tick_hook();
 
     if (host_name != nullptr && socket_fd < 0) {
@@ -380,7 +439,6 @@ bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
 void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, int error_number)
 {
     TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
-
     connect_callback = nullptr;
 
     close();
@@ -393,7 +451,6 @@ void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, i
 void TFGenericTCPClient::disconnect(TFGenericTCPClientDisconnectReason reason, int error_number)
 {
     TFGenericTCPClientDisconnectCallback callback = std::move(disconnect_callback);
-
     disconnect_callback = nullptr;
 
     close();

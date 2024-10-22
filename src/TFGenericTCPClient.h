@@ -33,8 +33,9 @@ enum class TFGenericTCPClientConnectResult
 {
     InvalidArgument,
     NoFreePoolSlot,
-    NoFreePoolHandle,
-    NestedConnect,
+    NoFreePoolShare,
+    NonReentrant,
+    AlreadyConnected,
     AbortRequested,
     ResolveFailed,            // errno as received from resolve callback
     SocketCreateFailed,       // errno
@@ -49,6 +50,15 @@ enum class TFGenericTCPClientConnectResult
 };
 
 const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result);
+
+enum class TFGenericTCPClientDisconnectResult
+{
+    NonReentrant,
+    NotConnected,
+    Disconnected,
+};
+
+const char *get_tf_generic_tcp_client_disconnect_result_name(TFGenericTCPClientDisconnectResult result);
 
 enum class TFGenericTCPClientDisconnectReason
 {
@@ -84,12 +94,13 @@ public:
     TFGenericTCPClient(TFGenericTCPClient const &other) = delete;
     TFGenericTCPClient &operator=(TFGenericTCPClient const &other) = delete;
 
-    void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback, TFGenericTCPClientDisconnectCallback &&disconnect_callback);
-    void disconnect();
+    void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback,
+                 TFGenericTCPClientDisconnectCallback &&disconnect_callback); // non-reentrant
+    TFGenericTCPClientDisconnectResult disconnect(); // non-reentrant
     const char *get_host_name() const { return host_name; }
     uint16_t get_port() const { return port; }
     TFGenericTCPClientConnectionStatus get_connection_status() const;
-    void tick();
+    void tick(); // non-reentrant
 
 protected:
     virtual void close_hook()   = 0;
@@ -101,16 +112,33 @@ protected:
     void abort_connect(TFGenericTCPClientConnectResult result, int error_number);
     void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 
-    char *host_name = nullptr;
-    uint16_t port   = 0;
+    bool non_reentrant            = false;
+    char *host_name               = nullptr;
+    uint16_t port                 = 0;
     TFGenericTCPClientConnectCallback connect_callback;
     TFGenericTCPClientDisconnectCallback pending_disconnect_callback;
     TFGenericTCPClientDisconnectCallback disconnect_callback;
-    uint32_t connect_id           = 0;
     bool resolve_pending          = false;
     uint32_t resolve_id           = 0;
     uint32_t pending_host_address = 0; // IPv4 only
     int pending_socket_fd         = -1;
     int64_t connect_deadline_us   = 0;
     int socket_fd                 = -1;
+};
+
+class TFGenericTCPSharedClient
+{
+public:
+    TFGenericTCPSharedClient(TFGenericTCPClient *client_) : client(client_) {}
+    virtual ~TFGenericTCPSharedClient() {}
+
+    TFGenericTCPSharedClient(TFGenericTCPSharedClient const &other) = delete;
+    TFGenericTCPSharedClient &operator=(TFGenericTCPSharedClient const &other) = delete;
+
+    const char *get_host_name() const { return client->get_host_name(); }
+    uint16_t get_port() const { return client->get_port(); }
+    TFGenericTCPClientConnectionStatus get_connection_status() const { return client->get_connection_status(); }
+
+private:
+    TFGenericTCPClient *client;
 };

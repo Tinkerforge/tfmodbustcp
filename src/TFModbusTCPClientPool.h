@@ -27,5 +27,6 @@ public:
     TFModbusTCPClientPool() {}
 
 protected:
-    TFGenericTCPClient *new_client() override;
+    TFGenericTCPClient *create_client() override;
+    TFGenericTCPSharedClient *create_shared_client(TFGenericTCPClient *client) override;
 };

@@ -21,7 +21,12 @@
 
 #include "TFModbusTCPClient.h"
 
-TFGenericTCPClient *TFModbusTCPClientPool::new_client()
+TFGenericTCPClient *TFModbusTCPClientPool::create_client()
 {
     return new TFModbusTCPClient;
+}
+
+TFGenericTCPSharedClient *TFModbusTCPClientPool::create_shared_client(TFGenericTCPClient *client)
+{
+    return new TFModbusTCPSharedClient(static_cast<TFModbusTCPClient *>(client));
 }

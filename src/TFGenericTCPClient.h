@@ -81,6 +81,9 @@ public:
     TFGenericTCPClient() {}
     virtual ~TFGenericTCPClient() {}
 
+    TFGenericTCPClient(TFGenericTCPClient const &other) = delete;
+    TFGenericTCPClient &operator=(TFGenericTCPClient const &other) = delete;
+
     void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback, TFGenericTCPClientDisconnectCallback &&disconnect_callback);
     void disconnect();
     const char *get_host_name() const { return host_name; }

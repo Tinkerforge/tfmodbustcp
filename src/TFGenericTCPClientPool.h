@@ -53,6 +53,9 @@ public:
     TFGenericTCPClientPool() { memset(slots, 0, sizeof(slots)); }
     virtual ~TFGenericTCPClientPool() {}
 
+    TFGenericTCPClientPool(TFGenericTCPClientPool const &other) = delete;
+    TFGenericTCPClientPool &operator=(TFGenericTCPClientPool const &other) = delete;
+
     void acquire(const char *host_name, uint16_t port,
                  TFGenericTCPClientPoolConnectCallback &&connect_callback,
                  TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback);

@@ -71,6 +71,10 @@ class TFModbusTCPServer
 {
 public:
     TFModbusTCPServer() {}
+    virtual ~TFModbusTCPServer() {}
+
+    TFModbusTCPServer(TFModbusTCPServer const &other) = delete;
+    TFModbusTCPServer &operator=(TFModbusTCPServer const &other) = delete;
 
     bool start(uint32_t bind_address, uint16_t port,
                TFModbusTCPServerConnectCallback &&connect_callback,

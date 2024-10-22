@@ -60,9 +60,9 @@ int main()
     uint8_t coil_buffer[2] = {0, 0};
     char *resolve_host_name = nullptr;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
-    int64_t resolve_callback_time_us;
     TFModbusTCPClient client;
     int64_t next_read_time_us = -1;
+    int64_t next_reconnect_us;
 
     signal(SIGINT, sigint_handler);
 
@@ -76,16 +76,15 @@ int main()
     TFNetworkUtil::microseconds = microseconds;
 
     TFNetworkUtil::resolve =
-    [&resolve_host_name, &resolve_callback, &resolve_callback_time_us](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+    [&resolve_host_name, &resolve_callback](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
         resolve_host_name = strdup(host_name);
         resolve_callback = std::move(callback);
-        resolve_callback_time_us = microseconds();
     };
 
     printf("%lu | connect...\n", microseconds());
     client.connect("localhost", 502,
     [&running, &next_read_time_us](TFGenericTCPClientConnectResult result, int error_number) {
-        printf("%lu | connect: %s / %s (%d)\n",
+        printf("%lu | connect 1st: %s / %s (%d)\n",
                microseconds(),
                get_tf_generic_tcp_client_connect_result_name(result),
                strerror(error_number),
@@ -95,21 +94,23 @@ int main()
             next_read_time_us = TFNetworkUtil::calculate_deadline(100000);
         }
         else {
-            running = false;
+            //running = false;
         }
     },
     [&running](TFGenericTCPClientDisconnectReason reason, int error_number) {
-        printf("%lu | disconnect: %s / %s (%d)\n",
+        printf("%lu | disconnect 1st: %s / %s (%d)\n",
                microseconds(),
                get_tf_generic_tcp_client_disconnect_reason_name(reason),
                strerror(error_number),
                error_number);
 
-        running = false;
+        //running = false;
     });
 
+    next_reconnect_us = TFNetworkUtil::calculate_deadline(5000000);
+
     while (running) {
-        if (resolve_host_name != nullptr && resolve_callback && resolve_callback_time_us + 1000000 < microseconds()) {
+        if (resolve_host_name != nullptr && resolve_callback) {
             hostent *result = gethostbyname(resolve_host_name);
 
             free(resolve_host_name);
@@ -167,6 +168,39 @@ int main()
                        (coil_buffer[1] >> 1) & 1);
 
                 next_read_time_us = TFNetworkUtil::calculate_deadline(100000);
+            });
+        }
+
+        if (next_reconnect_us >= 0 && TFNetworkUtil::deadline_elapsed(next_reconnect_us)) {
+            next_reconnect_us = -1;
+
+            printf("%lu | disconnect...\n", microseconds());
+            client.disconnect();
+
+            printf("%lu | reconnect...\n", microseconds());
+            client.connect("localhost", 502,
+            [&running, &next_read_time_us](TFGenericTCPClientConnectResult result, int error_number) {
+                printf("%lu | connect 2nd: %s / %s (%d)\n",
+                       microseconds(),
+                       get_tf_generic_tcp_client_connect_result_name(result),
+                       strerror(error_number),
+                       error_number);
+
+                if (result == TFGenericTCPClientConnectResult::Connected) {
+                    next_read_time_us = TFNetworkUtil::calculate_deadline(100000);
+                }
+                else {
+                    //running = false;
+                }
+            },
+            [&running](TFGenericTCPClientDisconnectReason reason, int error_number) {
+                printf("%lu | disconnect 2nd: %s / %s (%d)\n",
+                       microseconds(),
+                       get_tf_generic_tcp_client_disconnect_reason_name(reason),
+                       strerror(error_number),
+                       error_number);
+
+                //running = false;
             });
         }
 

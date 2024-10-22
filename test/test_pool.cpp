@@ -56,15 +56,12 @@ void sigint_handler(int dummy)
 
 int main()
 {
-    char *resolve_host_name = nullptr;
-    TFModbusTCPClient client;
     uint16_t buffer1[2] = {0, 0};
     uint16_t buffer2[2] = {0, 0};
-    std::function<void(uint32_t host_address, int error_number)> resolve_callback;
-    uint32_t resolve_callback_time;
     TFModbusTCPClientPool pool;
     TFGenericTCPSharedClient *client_ptr1 = nullptr;
     TFGenericTCPSharedClient *client_ptr2 = nullptr;
+    int64_t next_reconnect_us;
 
     signal(SIGINT, sigint_handler);
 
@@ -78,16 +75,21 @@ int main()
     TFNetworkUtil::microseconds = microseconds;
 
     TFNetworkUtil::resolve =
-    [&resolve_host_name, &resolve_callback, &resolve_callback_time](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
-        resolve_host_name = strdup(host_name);
-        resolve_callback = callback;
-        resolve_callback_time = microseconds();
+    [](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+        hostent *result = gethostbyname(host_name);
+
+        if (result == nullptr) {
+            callback(0, h_errno);
+        }
+        else {
+            callback(((struct in_addr *)result->h_addr)->s_addr, 0);
+        }
     };
 
     printf("%lu | acquire1...\n", microseconds());
     pool.acquire("localhost", 502,
     [&pool, &client_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client) {
-        printf("%lu | connect1 client=%p: %s / %s (%d)\n",
+        printf("%lu | connect1 1st client=%p: %s / %s (%d)\n",
                microseconds(),
                static_cast<void *>(client),
                get_tf_generic_tcp_client_connect_result_name(result),
@@ -122,7 +124,7 @@ int main()
         });
     },
     [&running, &client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client) {
-        printf("%lu | disconnect1 client=%p: %s / %s (%d)\n",
+        printf("%lu | disconnect1 1st client=%p: %s / %s (%d)\n",
                microseconds(),
                static_cast<void *>(client),
                get_tf_generic_tcp_client_disconnect_reason_name(reason),
@@ -134,7 +136,7 @@ int main()
     });
 
     printf("%lu | acquire2...\n", microseconds());
-    pool.acquire("localhost", 502,
+    pool.acquire("localhost", 1502,
     [&pool, &client_ptr2, &buffer2, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client) {
         printf("%lu | connect2 client=%p: %s / %s (%d)\n",
                microseconds(),
@@ -182,21 +184,38 @@ int main()
         --running;
     });
 
+    next_reconnect_us = TFNetworkUtil::calculate_deadline(5000000);
+
     while (running > 0) {
-        if (resolve_host_name != nullptr && resolve_callback && resolve_callback_time + 1000000 < microseconds()) {
-            hostent *result = gethostbyname(resolve_host_name);
+        if (client_ptr1 != nullptr && next_reconnect_us >= 0 && TFNetworkUtil::deadline_elapsed(next_reconnect_us)) {
+            next_reconnect_us = -1;
 
-            free(resolve_host_name);
-            resolve_host_name = nullptr;
+            printf("%lu | release1...\n", microseconds());
+            pool.release(client_ptr1);
+            client_ptr1 = nullptr;
 
-            if (result == nullptr) {
-                resolve_callback(0, h_errno);
-                resolve_callback = nullptr;
-                continue;
-            }
+            printf("%lu | reacquire1...\n", microseconds());
+            pool.acquire("localhost", 502,
+            [&pool, &client_ptr1, &buffer1, &running](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client) {
+                printf("%lu | connect1 2nd client=%p: %s / %s (%d)\n",
+                       microseconds(),
+                       static_cast<void *>(client),
+                       get_tf_generic_tcp_client_connect_result_name(result),
+                       strerror(error_number),
+                       error_number);
 
-            resolve_callback(((struct in_addr *)result->h_addr)->s_addr, 0);
-            resolve_callback = nullptr;
+                client_ptr1 = client;
+            },
+            [&running, &client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client) {
+                printf("%lu | disconnect1 2nd client=%p: %s / %s (%d)\n",
+                       microseconds(),
+                       static_cast<void *>(client),
+                       get_tf_generic_tcp_client_disconnect_reason_name(reason),
+                       strerror(error_number),
+                       error_number);
+
+                client_ptr1 = nullptr;
+            });
         }
 
         pool.tick();

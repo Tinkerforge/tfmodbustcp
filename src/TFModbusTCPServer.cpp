@@ -88,6 +88,18 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
         return false;
     }
 
+    int reuse_addr = 1;
+
+    if (setsockopt(pending_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr)) < 0) {
+        int saved_errno = errno;
+
+        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) setsockopt(SO_REUSEADDR) failed: %s (%d)",
+                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+
+        errno = saved_errno;
+        return false;
+    }
+
     int flags = fcntl(pending_fd, F_GETFL, 0);
 
     if (flags < 0) {

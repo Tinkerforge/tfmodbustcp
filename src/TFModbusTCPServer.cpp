@@ -236,6 +236,7 @@ void TFModbusTCPServer::tick()
 
         tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() accepting connection (socket_fd=%d peer_address=%u port=%u)",
                                  static_cast<void *>(this), socket_fd, peer_address, port);
+        connect_callback(peer_address, port);
 
         TFModbusTCPServerClient **tail_ptr = &client_sentinel.next;
         size_t client_count = 0;
@@ -266,8 +267,6 @@ void TFModbusTCPServer::tick()
             client->next                           = nullptr;
 
             *tail_ptr = client;
-
-            connect_callback(peer_address, port);
         }
     }
 

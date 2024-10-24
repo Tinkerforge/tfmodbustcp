@@ -60,11 +60,21 @@ const char *get_tf_modbus_tcp_server_client_disconnect_reason_name(TFModbusTCPSe
     return "Unknown";
 }
 
+// non-reentrant
 bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
                               TFModbusTCPServerConnectCallback &&connect_callback,
                               TFModbusTCPServerDisconnectCallback &&disconnect_callback,
                               TFModbusTCPServerRequestCallback &&request_callback)
 {
+    if (non_reentrant) {
+        debugfln("start(bind_address=%u port=%u) non-reentrant", bind_address, port);
+
+        errno = EWOULDBLOCK;
+        return false;
+    }
+
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+
     debugfln("start(bind_address=%u port=%u)", bind_address, port);
 
     if (port == 0 || !connect_callback || !disconnect_callback || !request_callback) {
@@ -163,10 +173,23 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     return true;
 }
 
-void TFModbusTCPServer::stop()
+// non-reentrant
+bool TFModbusTCPServer::stop()
 {
+    if (non_reentrant) {
+        debugfln("stop() non-reentrant");
+
+        errno = EWOULDBLOCK;
+        return false;
+    }
+
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+
     if (server_fd < 0) {
-        return;
+        debugfln("stop() not running");
+
+        errno = ESRCH;
+        return false;
     }
 
     debugfln("stop()");
@@ -188,10 +211,20 @@ void TFModbusTCPServer::stop()
     connect_callback    = nullptr;
     disconnect_callback = nullptr;
     request_callback    = nullptr;
+
+    return true;
 }
 
+// non-reentrant
 void TFModbusTCPServer::tick()
 {
+    if (non_reentrant) {
+        debugfln("tick() non-reentrant");
+        return;
+    }
+
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+
     if (server_fd < 0) {
         return;
     }

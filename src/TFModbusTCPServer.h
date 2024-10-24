@@ -83,14 +83,15 @@ public:
     bool start(uint32_t bind_address, uint16_t port,
                TFModbusTCPServerConnectCallback &&connect_callback,
                TFModbusTCPServerDisconnectCallback &&disconnect_callback,
-               TFModbusTCPServerRequestCallback &&request_callback);
-    void stop();
-    void tick();
+               TFModbusTCPServerRequestCallback &&request_callback); // non-reentrant
+    bool stop(); // non-reentrant
+    void tick(); // non-reentrant
 
 private:
     void disconnect(TFModbusTCPServerClient *client, TFModbusTCPServerDisconnectReason reason, int error_number);
     bool send_response(TFModbusTCPServerClient *client);
 
+    bool non_reentrant         = false;
     int server_fd              = -1;
     int64_t last_idle_check_us = 0;
     TFModbusTCPServerConnectCallback connect_callback;

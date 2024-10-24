@@ -25,8 +25,11 @@
 #include "TFModbusTCPCommon.h"
 
 // configuration
-#define TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT 8
-#define TF_MODBUS_TCP_SERVER_MAX_SEND_TRIES   10
+#define TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT       8
+#define TF_MODBUS_TCP_SERVER_MIN_DISPLACE_DELAY_US  (30 * 1000 * 1000) // 30 seconds
+#define TF_MODBUS_TCP_SERVER_MAX_IDLE_DURATION_US   ((int64_t)120 * 60 * 1000 * 1000) // 120 minutes
+#define TF_MODBUS_TCP_SERVER_IDLE_CHECK_INTERVAL_US 1000000 // 1 second
+#define TF_MODBUS_TCP_SERVER_MAX_SEND_TRIES         10
 
 enum class TFModbusTCPServerDisconnectReason
 {
@@ -35,6 +38,8 @@ enum class TFModbusTCPServerDisconnectReason
     SocketSendFailed,    // errno
     DisconnectedByPeer,
     ProtocolError,
+    Displaced,
+    Idle,
     ServerStopped,
 };
 
@@ -50,16 +55,15 @@ typedef std::function<TFModbusTCPExceptionCode(uint8_t unit_id,
                                                uint16_t data_count,
                                                void *data_values)> TFModbusTCPServerRequestCallback;
 
-struct TFModbusTCPServerClient;
-
-struct TFModbusTCPServerClientSentinel
+struct TFModbusTCPServerClientNode
 {
-    TFModbusTCPServerClient *next = nullptr;
+    TFModbusTCPServerClientNode *next = nullptr;
 };
 
-struct TFModbusTCPServerClient : public TFModbusTCPServerClientSentinel
+struct TFModbusTCPServerClient : public TFModbusTCPServerClientNode
 {
     int socket_fd;
+    int64_t last_alive_us;
     TFModbusTCPRequest pending_request;
     size_t pending_request_header_used;
     bool pending_request_header_checked;
@@ -87,9 +91,10 @@ private:
     void disconnect(TFModbusTCPServerClient *client, TFModbusTCPServerDisconnectReason reason, int error_number);
     bool send_response(TFModbusTCPServerClient *client);
 
-    int server_fd = -1;
+    int server_fd              = -1;
+    int64_t last_idle_check_us = 0;
     TFModbusTCPServerConnectCallback connect_callback;
     TFModbusTCPServerDisconnectCallback disconnect_callback;
     TFModbusTCPServerRequestCallback request_callback;
-    TFModbusTCPServerClientSentinel client_sentinel;
+    TFModbusTCPServerClientNode client_sentinel;
 };

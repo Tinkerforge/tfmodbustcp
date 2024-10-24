@@ -47,6 +47,12 @@ const char *get_tf_modbus_tcp_server_client_disconnect_reason_name(TFModbusTCPSe
     case TFModbusTCPServerDisconnectReason::ProtocolError:
         return "ProtocolError";
 
+    case TFModbusTCPServerDisconnectReason::Displaced:
+        return "Displaced";
+
+    case TFModbusTCPServerDisconnectReason::Idle:
+        return "Idle";
+
     case TFModbusTCPServerDisconnectReason::ServerStopped:
         return "ServerStopped";
     }
@@ -169,14 +175,14 @@ void TFModbusTCPServer::stop()
     close(server_fd);
     server_fd = -1;
 
-    TFModbusTCPServerClient *client = client_sentinel.next;
-    client_sentinel.next            = nullptr;
+    TFModbusTCPServerClientNode *node = client_sentinel.next;
+    client_sentinel.next              = nullptr;
 
-    while (client != nullptr) {
-        TFModbusTCPServerClient *client_next = client->next;
+    while (node != nullptr) {
+        TFModbusTCPServerClientNode *node_next = node->next;
 
-        disconnect(client, TFModbusTCPServerDisconnectReason::ServerStopped, -1);
-        client = client_next;
+        disconnect(static_cast<TFModbusTCPServerClient *>(node), TFModbusTCPServerDisconnectReason::ServerStopped, -1);
+        node = node_next;
     }
 
     connect_callback    = nullptr;
@@ -196,28 +202,30 @@ void TFModbusTCPServer::tick()
     FD_ZERO(&fdset);
     FD_SET(server_fd, &fdset);
 
-    for (TFModbusTCPServerClient *client = client_sentinel.next; client != nullptr; client = client->next) {
-        FD_SET(client->socket_fd, &fdset);
+    for (TFModbusTCPServerClientNode *node = client_sentinel.next; node != nullptr; node = node->next) {
+        int socket_fd = static_cast<TFModbusTCPServerClient *>(node)->socket_fd;
 
-        fd_max = std::max(fd_max, client->socket_fd);
+        FD_SET(socket_fd, &fdset);
+
+        fd_max = std::max(fd_max, socket_fd);
     }
 
     struct timeval tv;
     tv.tv_sec  = 0;
     tv.tv_usec = 0;
 
-    int result = select(fd_max + 1, &fdset, nullptr, nullptr, &tv);
+    int readable_fd_count = select(fd_max + 1, &fdset, nullptr, nullptr, &tv);
 
-    if (result < 0) {
+    if (readable_fd_count < 0) {
         debugfln("tick() select() failed: %s (%d)", strerror(errno), errno);
         return;
     }
 
-    if (result == 0) {
-        return; // timeout, nothing to do
+    if (readable_fd_count == 0 && !TFNetworkUtil::deadline_elapsed(last_idle_check_us + TF_MODBUS_TCP_SERVER_IDLE_CHECK_INTERVAL_US)) {
+        return;
     }
 
-    if (FD_ISSET(server_fd, &fdset)) {
+    if (readable_fd_count > 0 && FD_ISSET(server_fd, &fdset)) {
         struct sockaddr_in addr_in;
         socklen_t addr_in_length = sizeof(addr_in);
         int socket_fd = accept(server_fd, reinterpret_cast<struct sockaddr *>(&addr_in), &addr_in_length);
@@ -233,12 +241,27 @@ void TFModbusTCPServer::tick()
         debugfln("tick() accepting connection (socket_fd=%d peer_address=%u port=%u)", socket_fd, peer_address, port);
         connect_callback(peer_address, port);
 
-        TFModbusTCPServerClient **tail_ptr = &client_sentinel.next;
+        TFModbusTCPServerClientNode *node_prev = nullptr;
+        TFModbusTCPServerClientNode *node = &client_sentinel;
         size_t client_count = 0;
 
-        while (*tail_ptr != nullptr) {
-            tail_ptr = &(*tail_ptr)->next;
+        while (node->next != nullptr) {
+            node_prev = node;
+            node = node->next;
             ++client_count;
+        }
+
+        if (client_count >= TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT && node != &client_sentinel) {
+            TFModbusTCPServerClient *client = static_cast<TFModbusTCPServerClient *>(node);
+
+            if (TFNetworkUtil::deadline_elapsed(client->last_alive_us + TF_MODBUS_TCP_SERVER_MIN_DISPLACE_DELAY_US)) {
+                debugfln("tick() disconnecting client due to displacement by another connection (client=%p)", static_cast<void *>(client));
+
+                node_prev->next = nullptr;
+                --client_count;
+
+                disconnect(client, TFModbusTCPServerDisconnectReason::Displaced, -1);
+            }
         }
 
         if (client_count >= TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT) {
@@ -255,42 +278,69 @@ void TFModbusTCPServer::tick()
                      static_cast<void *>(client), socket_fd, peer_address, port);
 
             client->socket_fd                      = socket_fd;
+            client->last_alive_us                  = TFNetworkUtil::microseconds();
             client->pending_request_header_used    = 0;
             client->pending_request_header_checked = false;
             client->pending_request_payload_used   = 0;
-            client->next                           = nullptr;
-
-            *tail_ptr = client;
+            client->next                           = client_sentinel.next;
+            client_sentinel.next                   = client;
         }
     }
 
-    TFModbusTCPServerClientSentinel *client_prev = &client_sentinel;
-    TFModbusTCPServerClient *client = nullptr;
-    TFModbusTCPServerClient *client_next;
+    last_idle_check_us = TFNetworkUtil::microseconds();
 
-#define disconnect_and_unlink(reason, error_number) \
-    do { \
-        client_prev->next = client_next; \
-        disconnect(client, reason, error_number); \
-        client = nullptr; \
-    } while (0)
+    TFModbusTCPServerClientNode *pending_head = client_sentinel.next;
+    TFModbusTCPServerClientNode *finished_head = nullptr;
+    TFModbusTCPServerClientNode *finished_tail = nullptr;
+    TFModbusTCPServerClientNode *node = nullptr;
 
     while (true) {
-        if (client != nullptr) {
-            client_prev = client;
+        if (node != nullptr) {
+            if (finished_head == nullptr) {
+                finished_head = node;
+                finished_tail = node;
+            }
+            else {
+                node->next    = finished_head;
+                finished_head = node;
+            }
+
+            node = nullptr;
         }
 
-        client = client_prev->next;
-
-        if (client == nullptr) {
+        if (pending_head == nullptr) {
             break;
         }
 
-        client_next = client->next;
+        node         = pending_head;
+        pending_head = node->next;
+        node->next   = nullptr;
 
-        if (!FD_ISSET(client->socket_fd, &fdset)) {
+        TFModbusTCPServerClient *client = static_cast<TFModbusTCPServerClient *>(node);
+
+        if (TFNetworkUtil::deadline_elapsed(client->last_alive_us + TF_MODBUS_TCP_SERVER_MAX_IDLE_DURATION_US)) {
+            debugfln("tick() disconnecting idle client (client=%p)", static_cast<void *>(client));
+
+            node = nullptr;
+            disconnect(client, TFModbusTCPServerDisconnectReason::Idle, -1);
             continue;
         }
+
+        if (readable_fd_count == 0 || !FD_ISSET(client->socket_fd, &fdset)) {
+            if (finished_tail == nullptr) {
+                finished_head = node;
+                finished_tail = node;
+            }
+            else {
+                finished_tail->next = node;
+                finished_tail       = node;
+            }
+
+            node = nullptr;
+            continue;
+        }
+
+        client->last_alive_us = TFNetworkUtil::microseconds();
 
         size_t pending_request_header_missing = sizeof(client->pending_request.header) - client->pending_request_header_used;
 
@@ -307,7 +357,8 @@ void TFModbusTCPServer::tick()
                     debugfln("tick() disconnecting client due to receive error (client=%p errno=%d)",
                              static_cast<void *>(client), saved_errno);
 
-                    disconnect_and_unlink(TFModbusTCPServerDisconnectReason::SocketReceiveFailed, saved_errno);
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::SocketReceiveFailed, saved_errno);
                 }
 
                 continue;
@@ -316,7 +367,8 @@ void TFModbusTCPServer::tick()
             if (result == 0) {
                 debugfln("tick() client disconnected by peer (client=%p)", static_cast<void *>(client));
 
-                disconnect_and_unlink(TFModbusTCPServerDisconnectReason::DisconnectedByPeer, -1);
+                node = nullptr;
+                disconnect(client, TFModbusTCPServerDisconnectReason::DisconnectedByPeer, -1);
                 continue;
             }
 
@@ -337,7 +389,8 @@ void TFModbusTCPServer::tick()
                 debugfln("tick() disconnecting client due to protocol error (client=%p protocol_id=%u)",
                          static_cast<void *>(client), client->pending_request.header.protocol_id);
 
-                disconnect_and_unlink(TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                node = nullptr;
+                disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
@@ -345,7 +398,8 @@ void TFModbusTCPServer::tick()
                 debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
                          static_cast<void *>(client), client->pending_request.header.frame_length);
 
-                disconnect_and_unlink(TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                node = nullptr;
+                disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
@@ -353,7 +407,8 @@ void TFModbusTCPServer::tick()
                 debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
                          static_cast<void *>(client), client->pending_request.header.frame_length);
 
-                disconnect_and_unlink(TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                node = nullptr;
+                disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
@@ -377,7 +432,8 @@ void TFModbusTCPServer::tick()
                     debugfln("tick() disconnecting client due to receive error (client=%p errno=%d)",
                              static_cast<void *>(client), saved_errno);
 
-                    disconnect_and_unlink(TFModbusTCPServerDisconnectReason::SocketReceiveFailed, saved_errno);
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::SocketReceiveFailed, saved_errno);
                 }
 
                 continue;
@@ -386,7 +442,8 @@ void TFModbusTCPServer::tick()
             if (result == 0) {
                 debugfln("tick() client disconnected by peer (client=%p)", static_cast<void *>(client));
 
-                disconnect_and_unlink(TFModbusTCPServerDisconnectReason::DisconnectedByPeer, -1);
+                node = nullptr;
+                disconnect(client, TFModbusTCPServerDisconnectReason::DisconnectedByPeer, -1);
                 continue;
             }
 
@@ -576,7 +633,8 @@ void TFModbusTCPServer::tick()
             debugfln("tick() disconnecting client due to send error (client=%p errno=%d)",
                      static_cast<void *>(client), saved_errno);
 
-            disconnect_and_unlink(TFModbusTCPServerDisconnectReason::SocketSendFailed, saved_errno);
+            node = nullptr;
+            disconnect(client, TFModbusTCPServerDisconnectReason::SocketSendFailed, saved_errno);
             continue;
         }
 
@@ -585,7 +643,7 @@ void TFModbusTCPServer::tick()
         client->pending_request_payload_used   = 0;
     }
 
-#undef disconnect_and_unlink
+    client_sentinel.next = finished_head;
 }
 
 void TFModbusTCPServer::disconnect(TFModbusTCPServerClient *client, TFModbusTCPServerDisconnectReason reason, int error_number)

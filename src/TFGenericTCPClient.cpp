@@ -27,6 +27,8 @@
 
 #include "TFNetworkUtil.h"
 
+#define debugfln(fmt, ...) tf_network_util_debugfln("TFGenericTCPClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
+
 const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result)
 {
     switch (result) {
@@ -148,8 +150,7 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
                                  TFGenericTCPClientDisconnectCallback &&disconnect_callback)
 {
     if (non_reentrant) {
-        tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) non-reentrant",
-                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        debugfln("connect(host_name=%s port=%u) non-reentrant", TFNetworkUtil::printf_safe(host_name), port);
         connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1);
         return;
     }
@@ -157,21 +158,18 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
-        tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) invalid argument",
-                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        debugfln("connect(host_name=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host_name), port);
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1);
         return;
     }
 
     if (this->host_name != nullptr) {
-        tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) already connected",
-                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        debugfln("connect(host_name=%s port=%u) already connected", TFNetworkUtil::printf_safe(host_name), port);
         connect_callback(TFGenericTCPClientConnectResult::AlreadyConnected, -1);
         return;
     }
 
-    tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) pending",
-                             static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+    debugfln("connect(host_name=%s port=%u) pending", TFNetworkUtil::printf_safe(host_name), port);
 
     this->host_name                   = strdup(host_name);
     this->port                        = port;
@@ -183,20 +181,18 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
 TFGenericTCPClientDisconnectResult TFGenericTCPClient::disconnect()
 {
     if (non_reentrant) {
-        tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() non-reentrant (host_name=%s port=%u)",
-                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        debugfln("disconnect() non-reentrant (host_name=%s port=%u)", TFNetworkUtil::printf_safe(host_name), port);
         return TFGenericTCPClientDisconnectResult::NonReentrant;
     }
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr) {
-        tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() not connected", static_cast<void *>(this));
+        debugfln("disconnect() not connected");
         return TFGenericTCPClientDisconnectResult::NotConnected;
     }
 
-    tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() disconnecting (host_name=%s port=%u)",
-                             static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+    debugfln("disconnect() disconnecting (host_name=%s port=%u)", host_name, port);
 
     TFGenericTCPClientConnectCallback connect_callback       = std::move(this->connect_callback);
     TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);
@@ -234,7 +230,7 @@ TFGenericTCPClientConnectionStatus TFGenericTCPClient::get_connection_status() c
 void TFGenericTCPClient::tick()
 {
     if (non_reentrant) {
-        tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() non-reentrant", static_cast<void *>(this));
+        debugfln("tick() non-reentrant");
         return;
     }
 
@@ -247,12 +243,12 @@ void TFGenericTCPClient::tick()
             resolve_pending             = true;
             uint32_t current_resolve_id = ++resolve_id;
 
-            tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() resolving (host_name=%s current_resolve_id=%u)",
-                                     static_cast<void *>(this), host_name, current_resolve_id);
+            debugfln("tick() resolving (host_name=%s current_resolve_id=%u)", host_name, current_resolve_id);
 
-            TFNetworkUtil::resolve(host_name, [this, current_resolve_id](uint32_t host_address, int error_number) {
-                tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() resolved (resolve_pending=%d current_resolve_id=%u resolve_id=%u host_address=%u error_number=%d)",
-                                         static_cast<void *>(this), static_cast<int>(resolve_pending), current_resolve_id, resolve_id, host_address, error_number);
+            TFNetworkUtil::resolve(host_name,
+            [this, current_resolve_id](uint32_t host_address, int error_number) {
+                debugfln("tick() resolved (resolve_pending=%d current_resolve_id=%u resolve_id=%u host_address=%u error_number=%d)",
+                         static_cast<int>(resolve_pending), current_resolve_id, resolve_id, host_address, error_number);
 
                 if (!resolve_pending || current_resolve_id != resolve_id) {
                     return;
@@ -273,9 +269,7 @@ void TFGenericTCPClient::tick()
                 return; // Waiting for resolve callback
             }
 
-            tf_network_util_debugfln("TFGenericTCPClient[%p]::tick() connecting (host_name=%s pending_host_address=%u)",
-                                     static_cast<void *>(this), host_name, pending_host_address);
-
+            debugfln("tick() connecting (host_name=%s pending_host_address=%u)", host_name, pending_host_address);
             pending_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
             if (pending_socket_fd < 0) {

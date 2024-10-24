@@ -19,9 +19,11 @@
 
 #include "TFGenericTCPClientPool.h"
 
+#include <sys/types.h>
+
 #include "TFNetworkUtil.h"
 
-#include <sys/types.h>
+#define debugfln(fmt, ...) tf_network_util_debugfln("TFGenericTCPClientPool[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
 
 // non-reentrant
 void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
@@ -29,8 +31,7 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
                                      TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback)
 {
     if (non_reentrant) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) non-reentrant",
-                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        debugfln("acquire(host_name=%s port=%u) non-reentrant", TFNetworkUtil::printf_safe(host_name), port);
         connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1, nullptr);
         return;
     }
@@ -38,13 +39,12 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) invalid argument",
-                                 static_cast<void *>(this), TFNetworkUtil::printf_safe(host_name), port);
+        debugfln("acquire(host_name=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host_name), port);
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1, nullptr);
         return;
     }
 
-    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u)", static_cast<void *>(this), host_name, port);
+    debugfln("acquire(host_name=%s port=%u)", host_name, port);
 
     ssize_t slot_index = -1;
 
@@ -67,14 +67,14 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
             continue;
         }
 
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) checking existing slot (slot_index=%zu client=%p host_name=%s port=%u)",
-                                 static_cast<void *>(this), host_name, port, i, static_cast<void *>(slot->client), slot->client->get_host_name(), slot->client->get_port());
+        debugfln("acquire(host_name=%s port=%u) checking existing slot (slot_index=%zu client=%p host_name=%s port=%u)",
+                 host_name, port, i, static_cast<void *>(slot->client), slot->client->get_host_name(), slot->client->get_port());
 
         if (strcmp(slot->client->get_host_name(), host_name) == 0 && slot->client->get_port() == port) {
             ssize_t share_index = -1;
 
-            tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) found matching existing slot (slot_index=%zu client=%p)",
-                                     static_cast<void *>(this), host_name, port, i, static_cast<void *>(slot->client));
+            debugfln("acquire(host_name=%s port=%u) found matching existing slot (slot_index=%zu client=%p)",
+                     host_name, port, i, static_cast<void *>(slot->client));
 
             for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++k) {
                 if (slot->shares[k] == nullptr) {
@@ -118,8 +118,8 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
     TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
     if (slot->delete_pending) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) reviving slot (slot_index=%zu slot=%p old_slot_id=%u new_slot_id=%u client=%p)",
-                                 static_cast<void *>(this), host_name, port, slot_index, static_cast<void *>(slot), slot->id, slot_id, static_cast<void *>(slot->client));
+        debugfln("acquire(host_name=%s port=%u) reviving slot (slot_index=%zu slot=%p old_slot_id=%u new_slot_id=%u client=%p)",
+                 host_name, port, slot_index, static_cast<void *>(slot), slot->id, slot_id, static_cast<void *>(slot->client));
     }
 
     slot->id = slot_id;
@@ -129,8 +129,8 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
         slot->client = create_client();
     }
 
-    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) connecting slot (slot_index=%zu slot=%p slot_id=%u client=%p)",
-                             static_cast<void *>(this), host_name, port, slot_index, static_cast<void *>(slot), slot_id, static_cast<void *>(slot->client));
+    debugfln("acquire(host_name=%s port=%u) connecting slot (slot_index=%zu slot=%p slot_id=%u client=%p)",
+             host_name, port, slot_index, static_cast<void *>(slot), slot_id, static_cast<void *>(slot->client));
 
     TFGenericTCPClientPoolShare *share = new TFGenericTCPClientPoolShare;
     share->shared_client = create_shared_client(slot->client);
@@ -143,15 +143,15 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
         TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
         if (slot == nullptr || slot->id != slot_id) {
-            tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(...) connected... slot got freed or reused (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
-                                     static_cast<void *>(this), get_tf_generic_tcp_client_connect_result_name(result), error_number,
-                                     slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
+            debugfln("acquire(...) connected... slot got freed or reused (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
+                     get_tf_generic_tcp_client_connect_result_name(result), error_number,
+                     slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
             return;
         }
 
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(...) connected (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
-                                 static_cast<void *>(this), get_tf_generic_tcp_client_connect_result_name(result), error_number,
-                                 slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
+        debugfln("acquire(...) connected (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
+                 get_tf_generic_tcp_client_connect_result_name(result), error_number,
+                 slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
 
         for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++k) {
             TFGenericTCPClientPoolShare *share = slot->shares[k];
@@ -186,15 +186,15 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
                 return;
             }
 
-            tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(...) disconnected... slot got freed or reused (reason=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
-                                     static_cast<void *>(this), get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
-                                     slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
+            debugfln("acquire(...) disconnected... slot got freed or reused (reason=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
+                     get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
+                     slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
             return;
         }
 
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(...) disconnected (reason=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
-                                 static_cast<void *>(this), get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
-                                 slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
+        debugfln("acquire(...) disconnected (reason=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
+                 get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
+                 slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
 
         for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++k) {
             TFGenericTCPClientPoolShare *share = slot->shares[k];
@@ -219,15 +219,13 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
 void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client)
 {
     if (non_reentrant) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(shared_client=%p) non-reentrant",
-                                 static_cast<void *>(this), static_cast<void *>(shared_client));
+        debugfln("release(shared_client=%p) non-reentrant", static_cast<void *>(shared_client));
         return;
     }
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
-    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(shared_client=%p)",
-                             static_cast<void *>(this), static_cast<void *>(shared_client));
+    debugfln("release(shared_client=%p)", static_cast<void *>(shared_client));
 
     for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT; ++i) {
         TFGenericTCPClientPoolSlot *slot = slots[i];
@@ -248,15 +246,14 @@ void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client)
         }
     }
 
-    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(shared_client=%p) shared client not found",
-                             static_cast<void *>(this), static_cast<void *>(shared_client));
+    debugfln("release(shared_client=%p) shared client not found", static_cast<void *>(shared_client));
 }
 
 // non-reentrant
 void TFGenericTCPClientPool::tick()
 {
     if (non_reentrant) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::tick() non-reentrant", static_cast<void *>(this));
+        debugfln("tick() non-reentrant");
         return;
     }
 
@@ -270,8 +267,7 @@ void TFGenericTCPClientPool::tick()
         }
 
         if (slot->delete_pending) {
-            tf_network_util_debugfln("TFGenericTCPClientPool[%p]::tick() deleting slot (slot_index=%zu client=%p)",
-                                     static_cast<void *>(this), i, static_cast<void *>(slot->client));
+            debugfln("tick() deleting slot (slot_index=%zu client=%p)", i, static_cast<void *>(slot->client));
 
             slots[i] = nullptr;
             delete slot->client;
@@ -288,21 +284,21 @@ void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, bool
     TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
     if (slot == nullptr) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(slot_index=%zu share_index=%zu disconnect=%d) invalid slot",
-                                 static_cast<void *>(this), slot_index, share_index, disconnect ? 1 : 0);
+        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) invalid slot",
+                 slot_index, share_index, disconnect ? 1 : 0);
         return;
     }
 
     TFGenericTCPClientPoolShare *share = slot->shares[share_index];
 
     if (share == nullptr) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(slot_index=%zu share_index=%zu disconnect=%d) invalid share",
-                                 static_cast<void *>(this), slot_index, share_index, disconnect ? 1 : 0);
+        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) invalid share",
+                 slot_index, share_index, disconnect ? 1 : 0);
         return;
     }
 
-    tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(slot_index=%zu share_index=%zu disconnect=%d)",
-                             static_cast<void *>(this), slot_index, share_index, disconnect ? 1 : 0);
+    debugfln("release(slot_index=%zu share_index=%zu disconnect=%d)",
+             slot_index, share_index, disconnect ? 1 : 0);
 
     slot->shares[share_index] = nullptr;
 
@@ -328,9 +324,9 @@ void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, bool
     }
 
     if (!slot_active) {
-        tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(slot_index=%zu share_index=%zu disconnect=%d) marking inactive slot for deletion (client=%p host_name=%s port=%u)",
-                                 static_cast<void *>(this), slot_index, share_index, disconnect ? 1 : 0, static_cast<void *>(slot->client),
-                                 TFNetworkUtil::printf_safe(slot->client->get_host_name()), slot->client->get_port());
+        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) marking inactive slot for deletion (client=%p host_name=%s port=%u)",
+                 slot_index, share_index, disconnect ? 1 : 0, static_cast<void *>(slot->client),
+                 TFNetworkUtil::printf_safe(slot->client->get_host_name()), slot->client->get_port());
 
         slot->delete_pending = true;
 

@@ -27,6 +27,8 @@
 
 #include "TFNetworkUtil.h"
 
+#define debugfln(fmt, ...) tf_network_util_debugfln("TFModbusTCPServer[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
+
 const char *get_tf_modbus_tcp_server_client_disconnect_reason_name(TFModbusTCPServerDisconnectReason reason)
 {
     switch (reason) {
@@ -57,20 +59,17 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
                               TFModbusTCPServerDisconnectCallback &&disconnect_callback,
                               TFModbusTCPServerRequestCallback &&request_callback)
 {
-    tf_network_util_debugfln("TFGenericTCPClient[%p]::start(bind_address=%u port=%u)",
-                             static_cast<void *>(this), bind_address, port);
+    debugfln("start(bind_address=%u port=%u)", bind_address, port);
 
     if (port == 0 || !connect_callback || !disconnect_callback || !request_callback) {
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) invalid argument",
-                                 static_cast<void *>(this), bind_address, port);
+        debugfln("start(bind_address=%u port=%u) invalid argument", bind_address, port);
 
         errno = EINVAL;
         return false;
     }
 
     if (server_fd >= 0) {
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) already running",
-                                 static_cast<void *>(this), bind_address, port);
+        debugfln("start(bind_address=%u port=%u) already running", bind_address, port);
 
         errno = EBUSY;
         return false;
@@ -81,8 +80,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (pending_fd < 0) {
         int saved_errno = errno;
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) socket() failed: %s (%d)",
-                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%u port=%u) socket() failed: %s (%d)",
+                 bind_address, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -93,8 +92,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (setsockopt(pending_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr)) < 0) {
         int saved_errno = errno;
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) setsockopt(SO_REUSEADDR) failed: %s (%d)",
-                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%u port=%u) setsockopt(SO_REUSEADDR) failed: %s (%d)",
+                 bind_address, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -105,8 +104,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (flags < 0) {
         int saved_errno = errno;
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) fcntl(F_GETFL) failed: %s (%d)",
-                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%u port=%u) fcntl(F_GETFL) failed: %s (%d)",
+                 bind_address, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -115,8 +114,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (fcntl(pending_fd, F_SETFL, flags | O_NONBLOCK) < 0) {
         int saved_errno = errno;
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) fcntl(F_SETFL) failed: %s (%d)",
-                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%u port=%u) fcntl(F_SETFL) failed: %s (%d)",
+                 bind_address, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -133,8 +132,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (bind(pending_fd, (struct sockaddr *)&addr_in, sizeof(addr_in)) < 0) {
         int saved_errno = errno;
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) bind() failed: %s (%d)",
-                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%u port=%u) bind() failed: %s (%d)",
+                 bind_address, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -143,8 +142,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (listen(pending_fd, 5) < 0) {
         int saved_errno = errno;
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::start(bind_address=%u port=%u) listen() failed: %s (%d)",
-                                 static_cast<void *>(this), bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%u port=%u) listen() failed: %s (%d)",
+                 bind_address, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -164,8 +163,7 @@ void TFModbusTCPServer::stop()
         return;
     }
 
-    tf_network_util_debugfln("TFModbusTCPServer[%p]::stop()",
-                             static_cast<void *>(this));
+    debugfln("stop()");
 
     shutdown(server_fd, SHUT_RDWR);
     close(server_fd);
@@ -211,8 +209,7 @@ void TFModbusTCPServer::tick()
     int result = select(fd_max + 1, &fdset, nullptr, nullptr, &tv);
 
     if (result < 0) {
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() select() failed: %s (%d)",
-                                 static_cast<void *>(this), strerror(errno), errno);
+        debugfln("tick() select() failed: %s (%d)", strerror(errno), errno);
         return;
     }
 
@@ -226,16 +223,14 @@ void TFModbusTCPServer::tick()
         int socket_fd = accept(server_fd, reinterpret_cast<struct sockaddr *>(&addr_in), &addr_in_length);
 
         if (socket_fd < 0) {
-            tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() accept() failed: %s (%d)",
-                                     static_cast<void *>(this), strerror(errno), errno);
+            debugfln("tick() accept() failed: %s (%d)", strerror(errno), errno);
             return;
         }
 
         uint32_t peer_address = addr_in.sin_addr.s_addr;
         uint16_t port         = ntohs(addr_in.sin_port);
 
-        tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() accepting connection (socket_fd=%d peer_address=%u port=%u)",
-                                 static_cast<void *>(this), socket_fd, peer_address, port);
+        debugfln("tick() accepting connection (socket_fd=%d peer_address=%u port=%u)", socket_fd, peer_address, port);
         connect_callback(peer_address, port);
 
         TFModbusTCPServerClient **tail_ptr = &client_sentinel.next;
@@ -247,8 +242,7 @@ void TFModbusTCPServer::tick()
         }
 
         if (client_count >= TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT) {
-            tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() no free client for connection (socket_fd=%d peer_address=%u port=%u)",
-                                     static_cast<void *>(this), socket_fd, peer_address, port);
+            debugfln("tick() no free client for connection (socket_fd=%d peer_address=%u port=%u)", socket_fd, peer_address, port);
 
             shutdown(socket_fd, SHUT_RDWR);
             close(socket_fd);
@@ -257,8 +251,8 @@ void TFModbusTCPServer::tick()
         else {
             TFModbusTCPServerClient *client = new TFModbusTCPServerClient;
 
-            tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() allocating client for connection (client=%p socket_fd=%d peer_address=%u port=%u)",
-                                     static_cast<void *>(this), static_cast<void *>(client), socket_fd, peer_address, port);
+            debugfln("tick() allocating client for connection (client=%p socket_fd=%d peer_address=%u port=%u)",
+                     static_cast<void *>(client), socket_fd, peer_address, port);
 
             client->socket_fd                      = socket_fd;
             client->pending_request_header_used    = 0;
@@ -310,8 +304,8 @@ void TFModbusTCPServer::tick()
                 if (errno != EAGAIN && errno != EWOULDBLOCK) {
                     int saved_errno = errno;
 
-                    tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() disconnecting client due to receive error (client=%p errno=%d)",
-                                             static_cast<void *>(this), static_cast<void *>(client), saved_errno);
+                    debugfln("tick() disconnecting client due to receive error (client=%p errno=%d)",
+                             static_cast<void *>(client), saved_errno);
 
                     disconnect_and_unlink(TFModbusTCPServerDisconnectReason::SocketReceiveFailed, saved_errno);
                 }
@@ -320,8 +314,7 @@ void TFModbusTCPServer::tick()
             }
 
             if (result == 0) {
-                tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() client disconnected by peer (client=%p)",
-                                         static_cast<void *>(this), static_cast<void *>(client));
+                debugfln("tick() client disconnected by peer (client=%p)", static_cast<void *>(client));
 
                 disconnect_and_unlink(TFModbusTCPServerDisconnectReason::DisconnectedByPeer, -1);
                 continue;
@@ -341,24 +334,24 @@ void TFModbusTCPServer::tick()
             client->pending_request.header.frame_length   = ntohs(client->pending_request.header.frame_length);
 
             if (client->pending_request.header.protocol_id != 0) {
-                tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() disconnecting client due to protocol error (client=%p protocol_id=%u)",
-                                         static_cast<void *>(this), static_cast<void *>(client), client->pending_request.header.protocol_id);
+                debugfln("tick() disconnecting client due to protocol error (client=%p protocol_id=%u)",
+                         static_cast<void *>(client), client->pending_request.header.protocol_id);
 
                 disconnect_and_unlink(TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
             if (client->pending_request.header.frame_length < TF_MODBUS_TCP_MIN_FRAME_LENGTH) {
-                tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
-                                         static_cast<void *>(this), static_cast<void *>(client), client->pending_request.header.frame_length);
+                debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
+                         static_cast<void *>(client), client->pending_request.header.frame_length);
 
                 disconnect_and_unlink(TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
             if (client->pending_request.header.frame_length > TF_MODBUS_TCP_MAX_FRAME_LENGTH) {
-                tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
-                                         static_cast<void *>(this), static_cast<void *>(client), client->pending_request.header.frame_length);
+                debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
+                         static_cast<void *>(client), client->pending_request.header.frame_length);
 
                 disconnect_and_unlink(TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
@@ -381,8 +374,8 @@ void TFModbusTCPServer::tick()
                 if (errno != EAGAIN && errno != EWOULDBLOCK) {
                     int saved_errno = errno;
 
-                    tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() disconnecting client due to receive error (client=%p errno=%d)",
-                                             static_cast<void *>(this), static_cast<void *>(client), saved_errno);
+                    debugfln("tick() disconnecting client due to receive error (client=%p errno=%d)",
+                             static_cast<void *>(client), saved_errno);
 
                     disconnect_and_unlink(TFModbusTCPServerDisconnectReason::SocketReceiveFailed, saved_errno);
                 }
@@ -391,8 +384,7 @@ void TFModbusTCPServer::tick()
             }
 
             if (result == 0) {
-                tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() client disconnected by peer (client=%p)",
-                                         static_cast<void *>(this), static_cast<void *>(client));
+                debugfln("tick() client disconnected by peer (client=%p)", static_cast<void *>(client));
 
                 disconnect_and_unlink(TFModbusTCPServerDisconnectReason::DisconnectedByPeer, -1);
                 continue;
@@ -581,8 +573,8 @@ void TFModbusTCPServer::tick()
         if (!send_response(client)) {
             int saved_errno = errno;
 
-            tf_network_util_debugfln("TFModbusTCPServer[%p]::tick() disconnecting client due to send error (client=%p errno=%d)",
-                                     static_cast<void *>(this), static_cast<void *>(client), saved_errno);
+            debugfln("tick() disconnecting client due to send error (client=%p errno=%d)",
+                     static_cast<void *>(client), saved_errno);
 
             disconnect_and_unlink(TFModbusTCPServerDisconnectReason::SocketSendFailed, saved_errno);
             continue;

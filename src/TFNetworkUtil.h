@@ -34,19 +34,18 @@ typedef std::function<int64_t(void)> TFNetworkUtilMicrosecondsFunction;
 typedef std::function<void(uint32_t host_address, int error_number)> TFNetworkUtilResolveResultCallback;
 typedef std::function<void(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveFunction;
 
-class TFNetworkUtil
+namespace TFNetworkUtil
 {
-public:
-    static const char *printf_safe(const char *string);
+    const char *printf_safe(const char *string);
 
-    static TFNetworkUtilVLogFLnFunction vlogfln;
-    [[gnu::format(__printf__, 1, 2)]] static void logfln(const char *fmt, ...);
+    extern TFNetworkUtilVLogFLnFunction vlogfln;
+    [[gnu::format(__printf__, 1, 2)]] void logfln(const char *fmt, ...);
 
-    static TFNetworkUtilMicrosecondsFunction microseconds;
-    static bool deadline_elapsed(int64_t deadline_us);
-    static int64_t calculate_deadline(int64_t delay_us);
+    extern TFNetworkUtilMicrosecondsFunction microseconds;
+    bool deadline_elapsed(int64_t deadline_us);
+    int64_t calculate_deadline(int64_t delay_us);
 
-    static TFNetworkUtilResolveFunction resolve;
+    extern TFNetworkUtilResolveFunction resolve;
 
     class NonReentrantScope
     {

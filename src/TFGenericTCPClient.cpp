@@ -27,16 +27,6 @@
 
 #include "TFNetworkUtil.h"
 
-class NonReentrantScope
-{
-public:
-    NonReentrantScope(bool *non_reentrant_) : non_reentrant(non_reentrant_) { *non_reentrant = true; }
-    ~NonReentrantScope() { *non_reentrant = false; }
-
-private :
-    bool *non_reentrant;
-};
-
 const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result)
 {
     switch (result) {
@@ -164,7 +154,7 @@ void TFGenericTCPClient::connect(const char *host_name, uint16_t port,
         return;
     }
 
-    NonReentrantScope scope(&non_reentrant);
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
         tf_network_util_debugfln("TFGenericTCPClient[%p]::connect(host_name=%s port=%u) invalid argument",
@@ -198,7 +188,7 @@ TFGenericTCPClientDisconnectResult TFGenericTCPClient::disconnect()
         return TFGenericTCPClientDisconnectResult::NonReentrant;
     }
 
-    NonReentrantScope scope(&non_reentrant);
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr) {
         tf_network_util_debugfln("TFGenericTCPClient[%p]::disconnect() not connected", static_cast<void *>(this));
@@ -248,7 +238,7 @@ void TFGenericTCPClient::tick()
         return;
     }
 
-    NonReentrantScope scope(&non_reentrant);
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     tick_hook();
 

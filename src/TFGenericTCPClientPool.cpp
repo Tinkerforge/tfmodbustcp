@@ -23,16 +23,6 @@
 
 #include <sys/types.h>
 
-class NonReentrantScope
-{
-public:
-    NonReentrantScope(bool *non_reentrant_) : non_reentrant(non_reentrant_) { *non_reentrant = true; }
-    ~NonReentrantScope() { *non_reentrant = false; }
-
-private :
-    bool *non_reentrant;
-};
-
 // non-reentrant
 void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
                                      TFGenericTCPClientPoolConnectCallback &&connect_callback,
@@ -45,7 +35,7 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
         return;
     }
 
-    NonReentrantScope scope(&non_reentrant);
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     if (host_name == nullptr || strlen(host_name) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
         tf_network_util_debugfln("TFGenericTCPClientPool[%p]::acquire(host_name=%s port=%u) invalid argument",
@@ -234,7 +224,7 @@ void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client)
         return;
     }
 
-    NonReentrantScope scope(&non_reentrant);
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     tf_network_util_debugfln("TFGenericTCPClientPool[%p]::release(shared_client=%p)",
                              static_cast<void *>(this), static_cast<void *>(shared_client));
@@ -270,7 +260,7 @@ void TFGenericTCPClientPool::tick()
         return;
     }
 
-    NonReentrantScope scope(&non_reentrant);
+    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
     for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT; ++i) {
         TFGenericTCPClientPoolSlot *slot = slots[i];

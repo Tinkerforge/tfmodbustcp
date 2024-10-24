@@ -47,4 +47,14 @@ public:
     static int64_t calculate_deadline(int64_t delay_us);
 
     static TFNetworkUtilResolveFunction resolve;
+
+    class NonReentrantScope
+    {
+    public:
+        NonReentrantScope(bool *non_reentrant_) : non_reentrant(non_reentrant_) { *non_reentrant = true; }
+        ~NonReentrantScope() { *non_reentrant = false; }
+
+    private:
+        bool *non_reentrant;
+    };
 };

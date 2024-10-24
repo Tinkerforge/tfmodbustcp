@@ -236,6 +236,10 @@ void TFGenericTCPClient::tick()
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
+    if (host_name == nullptr) {
+        return;
+    }
+
     tick_hook();
 
     if (host_name != nullptr && socket_fd < 0) {

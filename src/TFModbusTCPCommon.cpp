@@ -72,7 +72,7 @@ const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type)
         return "HoldingRegister";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode function_code)
@@ -103,14 +103,17 @@ const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode functio
         return "WriteMultipleRegisters";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 const char *get_tf_modbus_tcp_exception_code_name(TFModbusTCPExceptionCode exception_code)
 {
     switch (exception_code) {
     case TFModbusTCPExceptionCode::Success:
-        return "Success";
+        return "<Success>";
+
+    case TFModbusTCPExceptionCode::ForceTimeout:
+        return "<ForceTimeout>";
 
     case TFModbusTCPExceptionCode::IllegalFunction:
         return "IllegalFunction";
@@ -140,5 +143,5 @@ const char *get_tf_modbus_tcp_exception_code_name(TFModbusTCPExceptionCode excep
         return "GatewayTargetDeviceFailedToRespond";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }

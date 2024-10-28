@@ -68,6 +68,8 @@ const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode functio
 enum class TFModbusTCPExceptionCode : uint8_t
 {
     Success                            = 0,
+    ForceTimeout                       = 255,
+
     IllegalFunction                    = 0x01,
     IllegalDataAddress                 = 0x02,
     IllegalDataValue                   = 0x03,

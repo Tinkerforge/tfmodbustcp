@@ -81,7 +81,7 @@ const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConn
         return "Connected";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 const char *get_tf_generic_tcp_client_disconnect_result_name(TFGenericTCPClientDisconnectResult result)
@@ -97,7 +97,7 @@ const char *get_tf_generic_tcp_client_disconnect_result_name(TFGenericTCPClientD
         return "Disconnected";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 const char *get_tf_generic_tcp_client_disconnect_reason_name(TFGenericTCPClientDisconnectReason reason)
@@ -125,7 +125,7 @@ const char *get_tf_generic_tcp_client_disconnect_reason_name(TFGenericTCPClientD
         return "ProtocolError";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientConnectionStatus status)
@@ -141,7 +141,7 @@ const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientC
         return "Connected";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 // non-reentrant

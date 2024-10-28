@@ -57,7 +57,7 @@ const char *get_tf_modbus_tcp_server_client_disconnect_reason_name(TFModbusTCPSe
         return "ServerStopped";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 // non-reentrant
@@ -646,29 +646,31 @@ void TFModbusTCPServer::tick()
             break;
         }
 
-        client->response.payload.function_code  = client->pending_request.payload.function_code;
+        if (exception_code != TFModbusTCPExceptionCode::ForceTimeout) {
+            client->response.payload.function_code  = client->pending_request.payload.function_code;
 
-        if (exception_code != TFModbusTCPExceptionCode::Success) {
-            client->response.header.frame_length     = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                     + offsetof(TFModbusTCPResponsePayload, exception_sentinel);
-            client->response.payload.function_code  |= 0x80;
-            client->response.payload.exception_code  = static_cast<uint8_t>(exception_code);
-        }
+            if (exception_code != TFModbusTCPExceptionCode::Success) {
+                client->response.header.frame_length     = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                        + offsetof(TFModbusTCPResponsePayload, exception_sentinel);
+                client->response.payload.function_code  |= 0x80;
+                client->response.payload.exception_code  = static_cast<uint8_t>(exception_code);
+            }
 
-        client->response.header.transaction_id = htons(client->pending_request.header.transaction_id);
-        client->response.header.protocol_id    = htons(client->pending_request.header.protocol_id);
-        client->response.header.frame_length   = htons(client->response.header.frame_length);
-        client->response.header.unit_id        = client->pending_request.header.unit_id;
+            client->response.header.transaction_id = htons(client->pending_request.header.transaction_id);
+            client->response.header.protocol_id    = htons(client->pending_request.header.protocol_id);
+            client->response.header.frame_length   = htons(client->response.header.frame_length);
+            client->response.header.unit_id        = client->pending_request.header.unit_id;
 
-        if (!send_response(client)) {
-            int saved_errno = errno;
+            if (!send_response(client)) {
+                int saved_errno = errno;
 
-            debugfln("tick() disconnecting client due to send error (client=%p errno=%d)",
-                     static_cast<void *>(client), saved_errno);
+                debugfln("tick() disconnecting client due to send error (client=%p errno=%d)",
+                        static_cast<void *>(client), saved_errno);
 
-            node = nullptr;
-            disconnect(client, TFModbusTCPServerDisconnectReason::SocketSendFailed, saved_errno);
-            continue;
+                node = nullptr;
+                disconnect(client, TFModbusTCPServerDisconnectReason::SocketSendFailed, saved_errno);
+                continue;
+            }
         }
 
         client->pending_request_header_used    = 0;

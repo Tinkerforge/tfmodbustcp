@@ -110,7 +110,7 @@ const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTr
         return "ResponseTooShort";
     }
 
-    return "Unknown";
+    return "<Unknown>";
 }
 
 void TFModbusTCPClient::read(TFModbusTCPDataType data_type,

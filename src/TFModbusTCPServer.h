@@ -21,15 +21,16 @@
 
 #include <stddef.h>
 #include <functional>
+#include <TFTools/Micros.h>
 
 #include "TFModbusTCPCommon.h"
 
 // configuration
-#define TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT       8
-#define TF_MODBUS_TCP_SERVER_MIN_DISPLACE_DELAY_US  (30 * 1000 * 1000) // 30 seconds
-#define TF_MODBUS_TCP_SERVER_MAX_IDLE_DURATION_US   ((int64_t)120 * 60 * 1000 * 1000) // 120 minutes
-#define TF_MODBUS_TCP_SERVER_IDLE_CHECK_INTERVAL_US 1000000 // 1 second
-#define TF_MODBUS_TCP_SERVER_MAX_SEND_TRIES         10
+#define TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT    8
+#define TF_MODBUS_TCP_SERVER_MIN_DISPLACE_DELAY  30_s
+#define TF_MODBUS_TCP_SERVER_MAX_IDLE_DURATION   120_m
+#define TF_MODBUS_TCP_SERVER_IDLE_CHECK_INTERVAL 1_s
+#define TF_MODBUS_TCP_SERVER_MAX_SEND_TRIES      10
 
 enum class TFModbusTCPServerDisconnectReason
 {
@@ -63,7 +64,7 @@ struct TFModbusTCPServerClientNode
 struct TFModbusTCPServerClient : public TFModbusTCPServerClientNode
 {
     int socket_fd;
-    int64_t last_alive_us;
+    micros_t last_alive;
     TFModbusTCPRequest pending_request;
     size_t pending_request_header_used;
     bool pending_request_header_checked;
@@ -91,9 +92,9 @@ private:
     void disconnect(TFModbusTCPServerClient *client, TFModbusTCPServerDisconnectReason reason, int error_number);
     bool send_response(TFModbusTCPServerClient *client);
 
-    bool non_reentrant         = false;
-    int server_fd              = -1;
-    int64_t last_idle_check_us = 0;
+    bool non_reentrant       = false;
+    int server_fd            = -1;
+    micros_t last_idle_check = 0_s;
     TFModbusTCPServerConnectCallback connect_callback;
     TFModbusTCPServerDisconnectCallback disconnect_callback;
     TFModbusTCPServerRequestCallback request_callback;

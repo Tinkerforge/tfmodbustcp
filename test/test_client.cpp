@@ -29,7 +29,7 @@
 #include "../src/TFModbusTCPClient.h"
 #include "../src/TFModbusTCPClientPool.h"
 
-static int64_t microseconds()
+micros_t now_us()
 {
     struct timeval tv;
     static int64_t baseline_sec = 0;
@@ -40,7 +40,7 @@ static int64_t microseconds()
         baseline_sec = tv.tv_sec;
     }
 
-    return (static_cast<int64_t>(tv.tv_sec) - baseline_sec) * 1000000 + tv.tv_usec;
+    return micros_t{(static_cast<int64_t>(tv.tv_sec) - baseline_sec) * 1000000 + tv.tv_usec};
 }
 
 static volatile bool running = true;
@@ -49,7 +49,7 @@ void sigint_handler(int dummy)
 {
     (void)dummy;
 
-    printf("%lu | received SIGINT\n", microseconds());
+    TFNetworkUtil::logfln("received SIGINT");
 
     running = false;
 }
@@ -61,19 +61,17 @@ int main()
     char *resolve_host_name = nullptr;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
     TFModbusTCPClient client;
-    int64_t next_read_time_us = -1;
-    int64_t next_reconnect_us;
+    micros_t next_read_time = -1_s;
+    micros_t next_reconnect;
 
     signal(SIGINT, sigint_handler);
 
     TFNetworkUtil::vlogfln =
     [](const char *format, va_list args) {
-        printf("%lu | ", microseconds());
+        printf("%lu | ", (int64_t)now_us());
         vprintf(format, args);
         puts("");
     };
-
-    TFNetworkUtil::microseconds = microseconds;
 
     TFNetworkUtil::resolve =
     [&resolve_host_name, &resolve_callback](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
@@ -81,33 +79,31 @@ int main()
         resolve_callback = std::move(callback);
     };
 
-    printf("%lu | connect...\n", microseconds());
+    TFNetworkUtil::logfln(" connect...");
     client.connect("localhost", 502,
-    [&running, &next_read_time_us](TFGenericTCPClientConnectResult result, int error_number) {
-        printf("%lu | connect 1st: %s / %s (%d)\n",
-               microseconds(),
-               get_tf_generic_tcp_client_connect_result_name(result),
-               strerror(error_number),
-               error_number);
+    [&running, &next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
+        TFNetworkUtil::logfln("connect 1st: %s / %s (%d)",
+                              get_tf_generic_tcp_client_connect_result_name(result),
+                              strerror(error_number),
+                              error_number);
 
         if (result == TFGenericTCPClientConnectResult::Connected) {
-            next_read_time_us = TFNetworkUtil::calculate_deadline(100000);
+            next_read_time = calculate_deadline(100_ms);
         }
         else {
             //running = false;
         }
     },
     [&running](TFGenericTCPClientDisconnectReason reason, int error_number) {
-        printf("%lu | disconnect 1st: %s / %s (%d)\n",
-               microseconds(),
-               get_tf_generic_tcp_client_disconnect_reason_name(reason),
-               strerror(error_number),
-               error_number);
+        TFNetworkUtil::logfln("disconnect 1st: %s / %s (%d)",
+                              get_tf_generic_tcp_client_disconnect_reason_name(reason),
+                              strerror(error_number),
+                              error_number);
 
         //running = false;
     });
 
-    next_reconnect_us = TFNetworkUtil::calculate_deadline(5000000);
+    next_reconnect = calculate_deadline(5_s);
 
     while (running) {
         if (resolve_host_name != nullptr && resolve_callback) {
@@ -126,11 +122,11 @@ int main()
             resolve_callback = nullptr;
         }
 
-        if (next_read_time_us >= 0 && TFNetworkUtil::deadline_elapsed(next_read_time_us)) {
-            next_read_time_us = -1;
+        if (next_read_time >= 0_s && deadline_elapsed(next_read_time)) {
+            next_read_time = -1_s;
 
-            printf("%lu | read input registers...\n", microseconds());
-            client.read(TFModbusTCPDataType::InputRegister, 1, 1013, 2, register_buffer, 1000000,
+            TFNetworkUtil::logfln("read input registers...");
+            client.read(TFModbusTCPDataType::InputRegister, 1, 1013, 2, register_buffer, 1_s,
             [&register_buffer](TFModbusTCPClientTransactionResult result) {
                 union {
                     float f;
@@ -140,65 +136,61 @@ int main()
                 c32.r[0] = register_buffer[0];
                 c32.r[1] = register_buffer[1];
 
-                printf("%lu | read input registers: %s (%d) [%u %u -> %f]\n",
-                       microseconds(),
-                       get_tf_modbus_tcp_client_transaction_result_name(result),
-                       static_cast<int>(result),
-                       c32.r[0],
-                       c32.r[1],
-                       static_cast<double>(c32.f));
+                TFNetworkUtil::logfln("read input registers: %s (%d) [%u %u -> %f]",
+                                      get_tf_modbus_tcp_client_transaction_result_name(result),
+                                      static_cast<int>(result),
+                                      c32.r[0],
+                                      c32.r[1],
+                                      static_cast<double>(c32.f));
             });
 
-            printf("%lu | read coils...\n", microseconds());
-            client.read(TFModbusTCPDataType::Coil, 1, 122, 10, coil_buffer, 1000000,
-            [&next_read_time_us, &coil_buffer](TFModbusTCPClientTransactionResult result) {
-                printf("%lu | read coils: %s (%d) [%u %u %u %u %u %u %u %u %u %u]\n",
-                       microseconds(),
-                       get_tf_modbus_tcp_client_transaction_result_name(result),
-                       static_cast<int>(result),
-                       (coil_buffer[0] >> 0) & 1,
-                       (coil_buffer[0] >> 1) & 1,
-                       (coil_buffer[0] >> 2) & 1,
-                       (coil_buffer[0] >> 3) & 1,
-                       (coil_buffer[0] >> 4) & 1,
-                       (coil_buffer[0] >> 5) & 1,
-                       (coil_buffer[0] >> 6) & 1,
-                       (coil_buffer[0] >> 7) & 1,
-                       (coil_buffer[1] >> 0) & 1,
-                       (coil_buffer[1] >> 1) & 1);
+            TFNetworkUtil::logfln("read coils...");
+            client.read(TFModbusTCPDataType::Coil, 1, 122, 10, coil_buffer, 1_s,
+            [&next_read_time, &coil_buffer](TFModbusTCPClientTransactionResult result) {
+                TFNetworkUtil::logfln("read coils: %s (%d) [%u %u %u %u %u %u %u %u %u %u]",
+                                      get_tf_modbus_tcp_client_transaction_result_name(result),
+                                      static_cast<int>(result),
+                                      (coil_buffer[0] >> 0) & 1,
+                                      (coil_buffer[0] >> 1) & 1,
+                                      (coil_buffer[0] >> 2) & 1,
+                                      (coil_buffer[0] >> 3) & 1,
+                                      (coil_buffer[0] >> 4) & 1,
+                                      (coil_buffer[0] >> 5) & 1,
+                                      (coil_buffer[0] >> 6) & 1,
+                                      (coil_buffer[0] >> 7) & 1,
+                                      (coil_buffer[1] >> 0) & 1,
+                                      (coil_buffer[1] >> 1) & 1);
 
-                next_read_time_us = TFNetworkUtil::calculate_deadline(100000);
+                next_read_time = calculate_deadline(100_ms);
             });
         }
 
-        if (next_reconnect_us >= 0 && TFNetworkUtil::deadline_elapsed(next_reconnect_us)) {
-            next_reconnect_us = -1;
+        if (next_reconnect >= 0_s && deadline_elapsed(next_reconnect)) {
+            next_reconnect = -1_s;
 
-            printf("%lu | disconnect...\n", microseconds());
+            TFNetworkUtil::logfln("disconnect...");
             client.disconnect();
 
-            printf("%lu | reconnect...\n", microseconds());
+            TFNetworkUtil::logfln("reconnect...");
             client.connect("localhost", 502,
-            [&running, &next_read_time_us](TFGenericTCPClientConnectResult result, int error_number) {
-                printf("%lu | connect 2nd: %s / %s (%d)\n",
-                       microseconds(),
-                       get_tf_generic_tcp_client_connect_result_name(result),
-                       strerror(error_number),
-                       error_number);
+            [&running, &next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
+                TFNetworkUtil::logfln("connect 2nd: %s / %s (%d)",
+                                      get_tf_generic_tcp_client_connect_result_name(result),
+                                      strerror(error_number),
+                                      error_number);
 
                 if (result == TFGenericTCPClientConnectResult::Connected) {
-                    next_read_time_us = TFNetworkUtil::calculate_deadline(100000);
+                    next_read_time = calculate_deadline(100_ms);
                 }
                 else {
                     //running = false;
                 }
             },
             [&running](TFGenericTCPClientDisconnectReason reason, int error_number) {
-                printf("%lu | disconnect 2nd: %s / %s (%d)\n",
-                       microseconds(),
-                       get_tf_generic_tcp_client_disconnect_reason_name(reason),
-                       strerror(error_number),
-                       error_number);
+                TFNetworkUtil::logfln("disconnect 2nd: %s / %s (%d)",
+                                      get_tf_generic_tcp_client_disconnect_reason_name(reason),
+                                      strerror(error_number),
+                                      error_number);
 
                 //running = false;
             });

@@ -308,10 +308,10 @@ void TFGenericTCPClient::tick()
                 return;
             }
 
-            connect_deadline_us = TFNetworkUtil::calculate_deadline(TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT_US);
+            connect_deadline = calculate_deadline(TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT);
         }
 
-        if (TFNetworkUtil::deadline_elapsed(connect_deadline_us)) {
+        if (deadline_elapsed(connect_deadline)) {
             abort_connect(TFGenericTCPClientConnectResult::Timeout, -1);
             return;
         }
@@ -363,10 +363,10 @@ void TFGenericTCPClient::tick()
         callback(TFGenericTCPClientConnectResult::Connected, -1);
     }
 
-    int64_t tick_deadline_us = TFNetworkUtil::calculate_deadline(TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION_US);
+    micros_t tick_deadline = calculate_deadline(TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION);
     bool first = true;
 
-    while (socket_fd >= 0 && (!TFNetworkUtil::deadline_elapsed(tick_deadline_us) || first)) {
+    while (socket_fd >= 0 && (!deadline_elapsed(tick_deadline) || first)) {
         first = false;
 
         if (!receive_hook()) {

@@ -45,25 +45,6 @@ void TFNetworkUtil::logfln(const char *fmt, ...)
     va_end(args);
 }
 
-static int64_t microseconds_dummy()
-{
-    abort();
-
-    return 0;
-}
-
-TFNetworkUtilMicrosecondsFunction TFNetworkUtil::microseconds = microseconds_dummy;
-
-bool TFNetworkUtil::deadline_elapsed(int64_t deadline_us)
-{
-    return deadline_us < microseconds();
-}
-
-int64_t TFNetworkUtil::calculate_deadline(int64_t delay_us)
-{
-    return microseconds() + delay_us;
-}
-
 static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
 {
     (void)host_name;

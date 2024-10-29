@@ -118,7 +118,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
                              uint16_t start_address,
                              uint16_t data_count,
                              void *buffer,
-                             int64_t timeout_us,
+                             micros_t timeout,
                              TFModbusTCPClientTransactionCallback &&callback)
 {
     uint8_t function_code;
@@ -195,7 +195,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
     transaction->start_address = start_address;
     transaction->data_count    = data_count;
     transaction->buffer        = buffer;
-    transaction->timeout_us    = timeout_us;
+    transaction->timeout       = timeout;
     transaction->callback      = std::move(callback);
     transaction->next          = nullptr;
 
@@ -213,11 +213,11 @@ void TFModbusTCPClient::tick_hook()
     check_pending_transaction_timeout();
 
     if (pending_transaction == nullptr && scheduled_transaction_head != nullptr) {
-        pending_transaction             = scheduled_transaction_head;
-        scheduled_transaction_head      = scheduled_transaction_head->next;
-        pending_transaction->next       = nullptr;
-        pending_transaction_id          = next_transaction_id++;
-        pending_transaction_deadline_us = TFNetworkUtil::calculate_deadline(pending_transaction->timeout_us);
+        pending_transaction          = scheduled_transaction_head;
+        scheduled_transaction_head   = scheduled_transaction_head->next;
+        pending_transaction->next    = nullptr;
+        pending_transaction_id       = next_transaction_id++;
+        pending_transaction_deadline = calculate_deadline(pending_transaction->timeout);
 
         TFModbusTCPRequest request;
         size_t payload_length = offsetof(TFModbusTCPRequestPayload, byte_count);
@@ -461,9 +461,9 @@ void TFModbusTCPClient::finish_pending_transaction(TFModbusTCPClientTransactionR
         pending_transaction->callback = nullptr;
 
         delete pending_transaction;
-        pending_transaction             = nullptr;
-        pending_transaction_id          = 0;
-        pending_transaction_deadline_us = 0;
+        pending_transaction          = nullptr;
+        pending_transaction_id       = 0;
+        pending_transaction_deadline = 0_s;
 
         callback(result);
     }
@@ -491,7 +491,7 @@ void TFModbusTCPClient::finish_all_transactions(TFModbusTCPClientTransactionResu
 
 void TFModbusTCPClient::check_pending_transaction_timeout()
 {
-    if (pending_transaction != nullptr && TFNetworkUtil::deadline_elapsed(pending_transaction_deadline_us)) {
+    if (pending_transaction != nullptr && deadline_elapsed(pending_transaction_deadline)) {
         finish_pending_transaction(TFModbusTCPClientTransactionResult::Timeout);
     }
 }

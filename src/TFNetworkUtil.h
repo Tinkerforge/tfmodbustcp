@@ -30,7 +30,6 @@
 #endif
 
 typedef std::function<void(const char *fmt, va_list args)> TFNetworkUtilVLogFLnFunction;
-typedef std::function<int64_t(void)> TFNetworkUtilMicrosecondsFunction;
 typedef std::function<void(uint32_t host_address, int error_number)> TFNetworkUtilResolveResultCallback;
 typedef std::function<void(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveFunction;
 
@@ -40,10 +39,6 @@ namespace TFNetworkUtil
 
     extern TFNetworkUtilVLogFLnFunction vlogfln;
     [[gnu::format(__printf__, 1, 2)]] void logfln(const char *fmt, ...);
-
-    extern TFNetworkUtilMicrosecondsFunction microseconds;
-    bool deadline_elapsed(int64_t deadline_us);
-    int64_t calculate_deadline(int64_t delay_us);
 
     extern TFNetworkUtilResolveFunction resolve;
 

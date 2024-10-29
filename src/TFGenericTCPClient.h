@@ -23,11 +23,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <functional>
+#include <TFTools/Micros.h>
 
 // configuration
-#define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION_US 10000
-#define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT_US   3000000
-#define TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES       10
+#define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION 10_ms
+#define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT   3_s
+#define TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES    10
 
 enum class TFGenericTCPClientConnectResult
 {
@@ -122,7 +123,7 @@ protected:
     uint32_t resolve_id           = 0;
     uint32_t pending_host_address = 0; // IPv4 only
     int pending_socket_fd         = -1;
-    int64_t connect_deadline_us   = 0;
+    micros_t connect_deadline     = 0_s;
     int socket_fd                 = -1;
 };
 

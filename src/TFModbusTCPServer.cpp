@@ -254,7 +254,7 @@ void TFModbusTCPServer::tick()
         return;
     }
 
-    if (readable_fd_count == 0 && !TFNetworkUtil::deadline_elapsed(last_idle_check_us + TF_MODBUS_TCP_SERVER_IDLE_CHECK_INTERVAL_US)) {
+    if (readable_fd_count == 0 && !deadline_elapsed(last_idle_check + TF_MODBUS_TCP_SERVER_IDLE_CHECK_INTERVAL)) {
         return;
     }
 
@@ -287,7 +287,7 @@ void TFModbusTCPServer::tick()
         if (client_count >= TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT && node != &client_sentinel) {
             TFModbusTCPServerClient *client = static_cast<TFModbusTCPServerClient *>(node);
 
-            if (TFNetworkUtil::deadline_elapsed(client->last_alive_us + TF_MODBUS_TCP_SERVER_MIN_DISPLACE_DELAY_US)) {
+            if (deadline_elapsed(client->last_alive + TF_MODBUS_TCP_SERVER_MIN_DISPLACE_DELAY)) {
                 debugfln("tick() disconnecting client due to displacement by another connection (client=%p)", static_cast<void *>(client));
 
                 node_prev->next = nullptr;
@@ -311,7 +311,7 @@ void TFModbusTCPServer::tick()
                      static_cast<void *>(client), socket_fd, peer_address, port);
 
             client->socket_fd                      = socket_fd;
-            client->last_alive_us                  = TFNetworkUtil::microseconds();
+            client->last_alive                     = now_us();
             client->pending_request_header_used    = 0;
             client->pending_request_header_checked = false;
             client->pending_request_payload_used   = 0;
@@ -320,7 +320,7 @@ void TFModbusTCPServer::tick()
         }
     }
 
-    last_idle_check_us = TFNetworkUtil::microseconds();
+    last_idle_check = now_us();
 
     TFModbusTCPServerClientNode *pending_head = client_sentinel.next;
     TFModbusTCPServerClientNode *finished_head = nullptr;
@@ -351,7 +351,7 @@ void TFModbusTCPServer::tick()
 
         TFModbusTCPServerClient *client = static_cast<TFModbusTCPServerClient *>(node);
 
-        if (TFNetworkUtil::deadline_elapsed(client->last_alive_us + TF_MODBUS_TCP_SERVER_MAX_IDLE_DURATION_US)) {
+        if (deadline_elapsed(client->last_alive + TF_MODBUS_TCP_SERVER_MAX_IDLE_DURATION)) {
             debugfln("tick() disconnecting idle client (client=%p)", static_cast<void *>(client));
 
             node = nullptr;
@@ -373,7 +373,7 @@ void TFModbusTCPServer::tick()
             continue;
         }
 
-        client->last_alive_us = TFNetworkUtil::microseconds();
+        client->last_alive = now_us();
 
         size_t pending_request_header_missing = sizeof(client->pending_request.header) - client->pending_request_header_used;
 

@@ -9,6 +9,12 @@
       "url": "https://github.com/Tinkerforge/tfmodbustcp"
     },
     "headers": "TFModbusTCP.h",
+    "dependencies": [
+        {
+            "name": "TFTools",
+            "version": "https://github.com/Tinkerforge/tftools#b5d1a94873325c277109dec73832b616fc275836"
+        }
+    ],
     "license": "LGPL-2.1",
     "frameworks": "*",
     "platforms": "*"

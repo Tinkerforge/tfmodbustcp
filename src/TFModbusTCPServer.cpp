@@ -632,6 +632,10 @@ void TFModbusTCPServer::tick()
                 client->response.payload.start_address = htons(client->pending_request.payload.start_address);
                 client->response.payload.data_count    = htons(client->pending_request.payload.data_count);
 
+                for (size_t i = 0; i < client->pending_request.payload.data_count; ++i) {
+                    client->pending_request.payload.register_values[i] = ntohs(client->pending_request.payload.register_values[i]);
+                }
+
                 exception_code = request_callback(client->pending_request.header.unit_id,
                                                   static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
                                                   client->pending_request.payload.start_address,

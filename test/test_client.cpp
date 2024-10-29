@@ -60,7 +60,7 @@ int main()
     uint8_t coil_buffer[2] = {0, 0};
     char *resolve_host_name = nullptr;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
-    TFModbusTCPClient client;
+    TFModbusTCPClient client(TFModbusTCPByteOrder::Host);
     micros_t next_read_time = -1_s;
     micros_t next_reconnect;
 

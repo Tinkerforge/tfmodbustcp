@@ -75,7 +75,7 @@ struct TFModbusTCPServerClient : public TFModbusTCPServerClientNode
 class TFModbusTCPServer
 {
 public:
-    TFModbusTCPServer() {}
+    TFModbusTCPServer(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_) {}
     virtual ~TFModbusTCPServer() {}
 
     TFModbusTCPServer(TFModbusTCPServer const &other) = delete;
@@ -92,6 +92,7 @@ private:
     void disconnect(TFModbusTCPServerClient *client, TFModbusTCPServerDisconnectReason reason, int error_number);
     bool send_response(TFModbusTCPServerClient *client);
 
+    TFModbusTCPByteOrder register_byte_order;
     bool non_reentrant       = false;
     int server_fd            = -1;
     micros_t last_idle_check = 0_s;

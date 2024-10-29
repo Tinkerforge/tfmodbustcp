@@ -20,13 +20,17 @@
 #pragma once
 
 #include "TFGenericTCPClientPool.h"
+#include "TFModbusTCPCommon.h"
 
 class TFModbusTCPClientPool : public TFGenericTCPClientPool
 {
 public:
-    TFModbusTCPClientPool() {}
+    TFModbusTCPClientPool(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_) {}
 
 protected:
     TFGenericTCPClient *create_client() override;
     TFGenericTCPSharedClient *create_shared_client(TFGenericTCPClient *client) override;
+
+private:
+    TFModbusTCPByteOrder register_byte_order;
 };

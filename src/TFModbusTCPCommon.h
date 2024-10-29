@@ -41,6 +41,14 @@
 #define TF_MODBUS_TCP_MIN_WRITE_REGISTER_COUNT            1u
 #define TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT            123u
 
+enum class TFModbusTCPByteOrder
+{
+    Host,
+    Network,
+};
+
+const char *get_tf_modbus_tcp_byte_order_name(TFModbusTCPByteOrder byte_order);
+
 enum class TFModbusTCPDataType
 {
     Coil,

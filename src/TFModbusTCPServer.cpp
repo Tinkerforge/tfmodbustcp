@@ -413,32 +413,32 @@ void TFModbusTCPServer::tick()
             }
         }
 
+        uint16_t frame_length = ntohs(client->pending_request.header.frame_length);
+
         if (!client->pending_request_header_checked) {
-            client->pending_request.header.transaction_id = ntohs(client->pending_request.header.transaction_id);
-            client->pending_request.header.protocol_id    = ntohs(client->pending_request.header.protocol_id);
-            client->pending_request.header.frame_length   = ntohs(client->pending_request.header.frame_length);
+            uint16_t protocol_id  = ntohs(client->pending_request.header.protocol_id);
 
-            if (client->pending_request.header.protocol_id != 0) {
+            if (protocol_id != 0) {
                 debugfln("tick() disconnecting client due to protocol error (client=%p protocol_id=%u)",
-                         static_cast<void *>(client), client->pending_request.header.protocol_id);
+                         static_cast<void *>(client), protocol_id);
 
                 node = nullptr;
                 disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
-            if (client->pending_request.header.frame_length < TF_MODBUS_TCP_MIN_FRAME_LENGTH) {
+            if (frame_length < TF_MODBUS_TCP_MIN_FRAME_LENGTH) {
                 debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
-                         static_cast<void *>(client), client->pending_request.header.frame_length);
+                         static_cast<void *>(client), frame_length);
 
                 node = nullptr;
                 disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
                 continue;
             }
 
-            if (client->pending_request.header.frame_length > TF_MODBUS_TCP_MAX_FRAME_LENGTH) {
+            if (frame_length > TF_MODBUS_TCP_MAX_FRAME_LENGTH) {
                 debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
-                         static_cast<void *>(client), client->pending_request.header.frame_length);
+                         static_cast<void *>(client), frame_length);
 
                 node = nullptr;
                 disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
@@ -448,7 +448,7 @@ void TFModbusTCPServer::tick()
             client->pending_request_header_checked = true;
         }
 
-        size_t pending_request_payload_missing = client->pending_request.header.frame_length
+        size_t pending_request_payload_missing = frame_length
                                                - TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
                                                - client->pending_request_payload_used;
 
@@ -493,100 +493,101 @@ void TFModbusTCPServer::tick()
         switch (static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code)) {
         case TFModbusTCPFunctionCode::ReadCoils:
         case TFModbusTCPFunctionCode::ReadDiscreteInputs:
-            client->pending_request.payload.start_address = ntohs(client->pending_request.payload.start_address);
-            client->pending_request.payload.data_count    = ntohs(client->pending_request.payload.data_count);
+            {
+                uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
-            if (client->pending_request.payload.data_count < TF_MODBUS_TCP_MIN_READ_COIL_COUNT
-             || client->pending_request.payload.data_count > TF_MODBUS_TCP_MAX_READ_COIL_COUNT) {
-                exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
-            }
-            else {
-                client->response.payload.byte_count  = (client->pending_request.payload.data_count + 7) / 8;
-                client->response.header.frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                     + offsetof(TFModbusTCPResponsePayload, coil_values)
-                                                     + client->response.payload.byte_count;
+                if (data_count < TF_MODBUS_TCP_MIN_READ_COIL_COUNT
+                 || data_count > TF_MODBUS_TCP_MAX_READ_COIL_COUNT) {
+                    exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
+                }
+                else {
+                    client->response.payload.byte_count  = (data_count + 7) / 8;
+                    client->response.header.frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                         + offsetof(TFModbusTCPResponsePayload, coil_values)
+                                                         + client->response.payload.byte_count;
 
-                memset(client->response.payload.coil_values, 0, client->response.payload.byte_count);
-
-                exception_code = request_callback(client->pending_request.header.unit_id,
-                                                  static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
-                                                  client->pending_request.payload.start_address,
-                                                  client->pending_request.payload.data_count,
-                                                  client->response.payload.coil_values);
+                    exception_code = request_callback(client->pending_request.header.unit_id,
+                                                      static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
+                                                      ntohs(client->pending_request.payload.start_address),
+                                                      data_count,
+                                                      client->response.payload.coil_values);
+                }
             }
 
             break;
 
         case TFModbusTCPFunctionCode::ReadHoldingRegisters:
         case TFModbusTCPFunctionCode::ReadInputRegisters:
-            client->pending_request.payload.start_address = ntohs(client->pending_request.payload.start_address);
-            client->pending_request.payload.data_count    = ntohs(client->pending_request.payload.data_count);
+            {
+                uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
-            if (client->pending_request.payload.data_count < TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT
-             || client->pending_request.payload.data_count > TF_MODBUS_TCP_MAX_READ_REGISTER_COUNT) {
-                exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
-            }
-            else {
-                client->response.payload.byte_count  = client->pending_request.payload.data_count * 2;
-                client->response.header.frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                     + offsetof(TFModbusTCPResponsePayload, register_values)
-                                                     + client->response.payload.byte_count;
+                if (data_count < TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT
+                 || data_count > TF_MODBUS_TCP_MAX_READ_REGISTER_COUNT) {
+                    exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
+                }
+                else {
+                    client->response.payload.byte_count  = data_count * 2;
+                    client->response.header.frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                         + offsetof(TFModbusTCPResponsePayload, register_values)
+                                                         + client->response.payload.byte_count;
 
-                memset(client->response.payload.register_values, 0, client->response.payload.byte_count);
+                    exception_code = request_callback(client->pending_request.header.unit_id,
+                                                      static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
+                                                      ntohs(client->pending_request.payload.start_address),
+                                                      data_count,
+                                                      client->response.payload.register_values);
 
-                exception_code = request_callback(client->pending_request.header.unit_id,
-                                                  static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
-                                                  client->pending_request.payload.start_address,
-                                                  client->pending_request.payload.data_count,
-                                                  client->response.payload.register_values);
-
-                for (size_t i = 0; i < client->pending_request.payload.data_count; ++i) {
-                    client->response.payload.register_values[i] = htons(client->response.payload.register_values[i]);
+                    if (register_byte_order == TFModbusTCPByteOrder::Host) {
+                        for (size_t i = 0; i < data_count; ++i) {
+                            client->response.payload.register_values[i] = htons(client->response.payload.register_values[i]);
+                        }
+                    }
                 }
             }
 
             break;
 
         case TFModbusTCPFunctionCode::WriteSingleCoil:
-            client->pending_request.payload.start_address = ntohs(client->pending_request.payload.start_address);
-            client->pending_request.payload.data_value    = ntohs(client->pending_request.payload.data_value);
+            {
+                uint16_t data_value = ntohs(client->pending_request.payload.data_value);
 
-            if (client->pending_request.payload.data_value != 0x0000
-             && client->pending_request.payload.data_value != 0xFF00) {
-                exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
-            }
-            else {
-                client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                       + offsetof(TFModbusTCPResponsePayload, write_sentinel);
-                client->response.payload.start_address = htons(client->pending_request.payload.start_address);
-                client->response.payload.data_value    = htons(client->pending_request.payload.data_value);
+                if (data_value != 0x0000 && data_value != 0xFF00) {
+                    exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
+                }
+                else {
+                    client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                           + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                    client->response.payload.start_address = client->pending_request.payload.start_address;
+                    client->response.payload.data_value    = client->pending_request.payload.data_value;
 
-                uint8_t coil_values[1] = {static_cast<uint8_t>(client->pending_request.payload.data_value == 0xFF00 ? 1 : 0)};
+                    uint8_t coil_values[1] = {static_cast<uint8_t>(data_value == 0xFF00 ? 1 : 0)};
 
-                exception_code = request_callback(client->pending_request.header.unit_id,
-                                                  TFModbusTCPFunctionCode::WriteMultipleCoils,
-                                                  client->pending_request.payload.start_address,
-                                                  1,
-                                                  coil_values);
+                    exception_code = request_callback(client->pending_request.header.unit_id,
+                                                      TFModbusTCPFunctionCode::WriteMultipleCoils,
+                                                      ntohs(client->pending_request.payload.start_address),
+                                                      1,
+                                                      coil_values);
+                }
             }
 
             break;
 
         case TFModbusTCPFunctionCode::WriteSingleRegister:
-            client->pending_request.payload.start_address = ntohs(client->pending_request.payload.start_address);
-            client->pending_request.payload.data_value    = ntohs(client->pending_request.payload.data_value);
-
             {
                 client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
                                                        + offsetof(TFModbusTCPResponsePayload, write_sentinel);
-                client->response.payload.start_address = htons(client->pending_request.payload.start_address);
-                client->response.payload.data_value    = htons(client->pending_request.payload.data_value);
+                client->response.payload.start_address = client->pending_request.payload.start_address;
+                client->response.payload.data_value    = client->pending_request.payload.data_value;
 
                 uint16_t register_values[1] = {client->pending_request.payload.data_value};
 
+                if (register_byte_order == TFModbusTCPByteOrder::Host) {
+                    register_values[0] = ntohs(register_values[0]);
+                }
+
                 exception_code = request_callback(client->pending_request.header.unit_id,
                                                   TFModbusTCPFunctionCode::WriteMultipleRegisters,
-                                                  client->pending_request.payload.start_address,
+                                                  ntohs(client->pending_request.payload.start_address),
                                                   1,
                                                   register_values);
             }
@@ -594,53 +595,57 @@ void TFModbusTCPServer::tick()
             break;
 
         case TFModbusTCPFunctionCode::WriteMultipleCoils:
-            client->pending_request.payload.start_address = ntohs(client->pending_request.payload.start_address);
-            client->pending_request.payload.data_count    = ntohs(client->pending_request.payload.data_count);
+            {
+                uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
-            if (client->pending_request.payload.data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT
-             || client->pending_request.payload.data_count > TF_MODBUS_TCP_MAX_WRITE_COIL_COUNT
-             || client->pending_request.payload.byte_count != (client->pending_request.payload.data_count + 7) / 8) {
-                exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
-            }
-            else {
-                client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                       + offsetof(TFModbusTCPResponsePayload, write_sentinel);
-                client->response.payload.start_address = htons(client->pending_request.payload.start_address);
-                client->response.payload.data_count    = htons(client->pending_request.payload.data_count);
+                if (data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT
+                 || data_count > TF_MODBUS_TCP_MAX_WRITE_COIL_COUNT
+                 || client->pending_request.payload.byte_count != (data_count + 7) / 8) {
+                    exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
+                }
+                else {
+                    client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                           + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                    client->response.payload.start_address = client->pending_request.payload.start_address;
+                    client->response.payload.data_count    = client->pending_request.payload.data_count;
 
-                exception_code = request_callback(client->pending_request.header.unit_id,
-                                                  static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
-                                                  client->pending_request.payload.start_address,
-                                                  client->pending_request.payload.data_count,
-                                                  client->pending_request.payload.coil_values);
+                    exception_code = request_callback(client->pending_request.header.unit_id,
+                                                      static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
+                                                      ntohs(client->pending_request.payload.start_address),
+                                                      data_count,
+                                                      client->pending_request.payload.coil_values);
+                }
             }
 
             break;
 
         case TFModbusTCPFunctionCode::WriteMultipleRegisters:
-            client->pending_request.payload.start_address = ntohs(client->pending_request.payload.start_address);
-            client->pending_request.payload.data_count    = ntohs(client->pending_request.payload.data_count);
+            {
+                uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
-            if (client->pending_request.payload.data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT
-             || client->pending_request.payload.data_count > TF_MODBUS_TCP_MAX_WRITE_COIL_COUNT
-             || client->pending_request.payload.byte_count != client->pending_request.payload.data_count * 2) {
-                exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
-            }
-            else {
-                client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                       + offsetof(TFModbusTCPResponsePayload, write_sentinel);
-                client->response.payload.start_address = htons(client->pending_request.payload.start_address);
-                client->response.payload.data_count    = htons(client->pending_request.payload.data_count);
-
-                for (size_t i = 0; i < client->pending_request.payload.data_count; ++i) {
-                    client->pending_request.payload.register_values[i] = ntohs(client->pending_request.payload.register_values[i]);
+                if (data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT
+                 || data_count > TF_MODBUS_TCP_MAX_WRITE_COIL_COUNT
+                 || client->pending_request.payload.byte_count != data_count * 2) {
+                    exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
                 }
+                else {
+                    client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                           + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                    client->response.payload.start_address = client->pending_request.payload.start_address;
+                    client->response.payload.data_count    = client->pending_request.payload.data_count;
 
-                exception_code = request_callback(client->pending_request.header.unit_id,
-                                                  static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
-                                                  client->pending_request.payload.start_address,
-                                                  client->pending_request.payload.data_count,
-                                                  client->pending_request.payload.register_values);
+                    if (register_byte_order == TFModbusTCPByteOrder::Host) {
+                        for (size_t i = 0; i < data_count; ++i) {
+                            client->pending_request.payload.register_values[i] = ntohs(client->pending_request.payload.register_values[i]);
+                        }
+                    }
+
+                    exception_code = request_callback(client->pending_request.header.unit_id,
+                                                      static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),
+                                                      ntohs(client->pending_request.payload.start_address),
+                                                      data_count,
+                                                      client->pending_request.payload.register_values);
+                }
             }
 
             break;
@@ -655,13 +660,13 @@ void TFModbusTCPServer::tick()
 
             if (exception_code != TFModbusTCPExceptionCode::Success) {
                 client->response.header.frame_length     = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                        + offsetof(TFModbusTCPResponsePayload, exception_sentinel);
+                                                         + offsetof(TFModbusTCPResponsePayload, exception_sentinel);
                 client->response.payload.function_code  |= 0x80;
                 client->response.payload.exception_code  = static_cast<uint8_t>(exception_code);
             }
 
-            client->response.header.transaction_id = htons(client->pending_request.header.transaction_id);
-            client->response.header.protocol_id    = htons(client->pending_request.header.protocol_id);
+            client->response.header.transaction_id = client->pending_request.header.transaction_id;
+            client->response.header.protocol_id    = client->pending_request.header.protocol_id;
             client->response.header.frame_length   = htons(client->response.header.frame_length);
             client->response.header.unit_id        = client->pending_request.header.unit_id;
 

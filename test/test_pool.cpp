@@ -58,7 +58,7 @@ int main()
 {
     uint16_t buffer1[2] = {0, 0};
     uint16_t buffer2[2] = {0, 0};
-    TFModbusTCPClientPool pool;
+    TFModbusTCPClientPool pool(TFModbusTCPByteOrder::Host);
     TFGenericTCPSharedClient *client_ptr1 = nullptr;
     TFGenericTCPSharedClient *client_ptr2 = nullptr;
     micros_t next_reconnect;

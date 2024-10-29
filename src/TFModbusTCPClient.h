@@ -78,7 +78,7 @@ struct TFModbusTCPClientTransaction
 class TFModbusTCPClient final : public TFGenericTCPClient
 {
 public:
-    TFModbusTCPClient() {}
+    TFModbusTCPClient(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_) {}
 
     void read(TFModbusTCPDataType data_type,
               uint8_t unit_id,
@@ -100,6 +100,7 @@ private:
     void check_pending_transaction_timeout();
     void reset_pending_response();
 
+    TFModbusTCPByteOrder register_byte_order;
     uint16_t next_transaction_id                             = 0;
     TFModbusTCPClientTransaction *pending_transaction        = nullptr;
     uint16_t pending_transaction_id                          = 0;

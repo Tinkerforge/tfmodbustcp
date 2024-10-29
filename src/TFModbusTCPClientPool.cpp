@@ -23,7 +23,7 @@
 
 TFGenericTCPClient *TFModbusTCPClientPool::create_client()
 {
-    return new TFModbusTCPClient;
+    return new TFModbusTCPClient(register_byte_order);
 }
 
 TFGenericTCPSharedClient *TFModbusTCPClientPool::create_shared_client(TFGenericTCPClient *client)

@@ -398,17 +398,18 @@ bool TFModbusTCPClient::receive_hook()
 
     if (pending_transaction->buffer != nullptr) {
         if (copy_coil_values) {
-            uint8_t *buffer = static_cast<uint8_t *>(pending_transaction->buffer);
-
-            for (size_t i = 0; i < pending_response.payload.byte_count; ++i) {
-                buffer[i] = pending_response.payload.coil_values[i];
-            }
+            memcpy(pending_transaction->buffer, pending_response.payload.coil_values, pending_response.payload.byte_count);
         }
         else if (copy_register_values) {
-            uint16_t *buffer = static_cast<uint16_t *>(pending_transaction->buffer);
+            if (register_byte_order == TFModbusTCPByteOrder::Host) {
+                uint16_t *buffer = static_cast<uint16_t *>(pending_transaction->buffer);
 
-            for (size_t i = 0; i < pending_transaction->data_count; ++i) {
-                buffer[i] = ntohs(pending_response.payload.register_values[i]);
+                for (size_t i = 0; i < pending_transaction->data_count; ++i) {
+                    buffer[i] = ntohs(pending_response.payload.register_values[i]);
+                }
+            }
+            else { // TFModbusTCPByteOrder::Network
+                memcpy(pending_transaction->buffer, pending_response.payload.register_values, pending_response.payload.byte_count);
             }
         }
     }

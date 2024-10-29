@@ -56,6 +56,19 @@ static_assert(sizeof(TFModbusTCPResponse) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MO
 static_assert(offsetof(TFModbusTCPResponse, header)  == 0, "TFModbusTCPResponse::header has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponse, payload) == 7, "TFModbusTCPResponse::payload has unexpected offset");
 
+const char *get_tf_modbus_tcp_byte_order_name(TFModbusTCPByteOrder byte_order)
+{
+    switch (byte_order) {
+    case TFModbusTCPByteOrder::Host:
+        return "Host";
+
+    case TFModbusTCPByteOrder::Network:
+        return "Network";
+    }
+
+    return "<Unknown>";
+}
+
 const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type)
 {
     switch (data_type) {

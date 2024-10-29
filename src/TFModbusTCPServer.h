@@ -72,11 +72,10 @@ struct TFModbusTCPServerClient : public TFModbusTCPServerClientNode
     TFModbusTCPResponse response;
 };
 
-class TFModbusTCPServer
+class TFModbusTCPServer final
 {
 public:
     TFModbusTCPServer(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_) {}
-    virtual ~TFModbusTCPServer() {}
 
     TFModbusTCPServer(TFModbusTCPServer const &other) = delete;
     TFModbusTCPServer &operator=(TFModbusTCPServer const &other) = delete;

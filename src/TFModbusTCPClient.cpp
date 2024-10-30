@@ -165,7 +165,7 @@ void TFModbusTCPClient::read(TFModbusTCPDataType data_type,
         return;
     }
 
-    if (buffer == nullptr || !callback) {
+    if (buffer == nullptr || timeout < 0_s || !callback) {
         callback(TFModbusTCPClientTransactionResult::InvalidArgument);
         return;
     }

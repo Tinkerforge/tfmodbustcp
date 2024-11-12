@@ -26,9 +26,17 @@
 #include <TFTools/Micros.h>
 
 // configuration
+#ifndef TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION
 #define TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION 10_ms
+#endif
+
+#ifndef TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT
 #define TF_GENERIC_TCP_CLIENT_CONNECT_TIMEOUT   3_s
+#endif
+
+#ifndef TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES
 #define TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES    10
+#endif
 
 enum class TFGenericTCPClientConnectResult
 {

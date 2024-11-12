@@ -21,8 +21,13 @@
 
 #include "TFGenericTCPClient.h"
 
+#ifndef TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT
 #define TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT 8
+#endif
+
+#ifndef TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT
 #define TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT 8
+#endif
 
 typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *shared_client)> TFGenericTCPClientPoolConnectCallback;
 typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *shared_client)> TFGenericTCPClientPoolDisconnectCallback;

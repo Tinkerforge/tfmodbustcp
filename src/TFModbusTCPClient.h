@@ -25,7 +25,9 @@
 #include <sys/types.h>
 
 // configuration
+#ifndef TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT
 #define TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT 8
+#endif
 
 enum class TFModbusTCPClientTransactionResult
 {

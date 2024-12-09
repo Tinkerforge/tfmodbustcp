@@ -56,8 +56,10 @@ enum class TFModbusTCPClientTransactionResult
     ResponseUnitIDMismatch,
     ResponseFunctionCodeMismatch,
     ResponseFunctionCodeNotSupported,
-    ResponseByteCountInvalid,
-    ResponseRegisterCountMismatch,
+    ResponseByteCountMismatch,
+    ResponseStartAddressMismatch,
+    ResponseDataValueMismatch,
+    ResponseDataCountMismatch,
     ResponseTooShort,
 };
 
@@ -67,8 +69,8 @@ typedef std::function<void(TFModbusTCPClientTransactionResult result)> TFModbusT
 
 struct TFModbusTCPClientTransaction
 {
-    uint8_t function_code;
     uint8_t unit_id;
+    TFModbusTCPFunctionCode function_code;
     uint16_t start_address;
     uint16_t data_count;
     void *buffer;
@@ -82,13 +84,13 @@ class TFModbusTCPClient final : public TFGenericTCPClient
 public:
     TFModbusTCPClient(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_) {}
 
-    void read(TFModbusTCPDataType data_type,
-              uint8_t unit_id,
-              uint16_t start_address,
-              uint16_t data_count,
-              void *buffer,
-              micros_t timeout,
-              TFModbusTCPClientTransactionCallback &&callback);
+    void transact(uint8_t unit_id,
+                  TFModbusTCPFunctionCode function_code,
+                  uint16_t start_address,
+                  uint16_t data_count,
+                  void *buffer,
+                  micros_t timeout,
+                  TFModbusTCPClientTransactionCallback &&callback);
 
 private:
     void close_hook() override;
@@ -119,15 +121,15 @@ class TFModbusTCPSharedClient final : public TFGenericTCPSharedClient
 public:
     TFModbusTCPSharedClient(TFModbusTCPClient *client_) : TFGenericTCPSharedClient(client_), client(client_) {}
 
-    void read(TFModbusTCPDataType data_type,
-              uint8_t unit_id,
-              uint16_t start_address,
-              uint16_t data_count,
-              void *buffer,
-              micros_t timeout,
-              TFModbusTCPClientTransactionCallback &&callback)
+    void transact(uint8_t unit_id,
+                  TFModbusTCPFunctionCode function_code,
+                  uint16_t start_address,
+                  uint16_t data_count,
+                  void *buffer,
+                  micros_t timeout,
+                  TFModbusTCPClientTransactionCallback &&callback)
     {
-        client->read(data_type, unit_id, start_address, data_count, buffer, timeout, std::move(callback));
+        client->transact(unit_id, function_code, start_address, data_count, buffer, timeout, std::move(callback));
     }
 
 private:

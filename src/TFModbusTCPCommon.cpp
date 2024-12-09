@@ -69,25 +69,6 @@ const char *get_tf_modbus_tcp_byte_order_name(TFModbusTCPByteOrder byte_order)
     return "<Unknown>";
 }
 
-const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type)
-{
-    switch (data_type) {
-    case TFModbusTCPDataType::Coil:
-        return "Coil";
-
-    case TFModbusTCPDataType::DiscreteInput:
-        return "DiscreteInput";
-
-    case TFModbusTCPDataType::InputRegister:
-        return "InputRegister";
-
-    case TFModbusTCPDataType::HoldingRegister:
-        return "HoldingRegister";
-    }
-
-    return "<Unknown>";
-}
-
 const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode function_code)
 {
     switch (function_code) {

@@ -101,7 +101,7 @@ int main()
         }
 
         TFNetworkUtil::logfln("read1... client=%p", static_cast<void *>(client));
-        static_cast<TFModbusTCPSharedClient *>(client)->read(TFModbusTCPDataType::InputRegister, 1, 1013, 2, buffer1, 1_s,
+        static_cast<TFModbusTCPSharedClient *>(client)->transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, buffer1, 1_s,
         [&pool, client, &buffer1](TFModbusTCPClientTransactionResult result) {
             union {
                 float f;
@@ -147,7 +147,7 @@ int main()
         }
 
         TFNetworkUtil::logfln("read2... client=%p", static_cast<void *>(client));
-        static_cast<TFModbusTCPSharedClient *>(client)->read(TFModbusTCPDataType::InputRegister, 1, 1013, 2, buffer2, 1_s,
+        static_cast<TFModbusTCPSharedClient *>(client)->transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, buffer2, 1_s,
         [&pool, &buffer2](TFModbusTCPClientTransactionResult result) {
             union {
                 float f;

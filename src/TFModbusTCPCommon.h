@@ -49,16 +49,6 @@ enum class TFModbusTCPByteOrder
 
 const char *get_tf_modbus_tcp_byte_order_name(TFModbusTCPByteOrder byte_order);
 
-enum class TFModbusTCPDataType
-{
-    Coil,
-    DiscreteInput,
-    InputRegister,
-    HoldingRegister,
-};
-
-const char *get_tf_modbus_tcp_data_type_name(TFModbusTCPDataType data_type);
-
 enum class TFModbusTCPFunctionCode : uint8_t
 {
     ReadCoils              = 1,
@@ -172,7 +162,8 @@ union TFModbusTCPResponsePayload
             struct [[gnu::packed]] {
                 uint16_t start_address;  // Write Single Coil (5),
                                          // Write Single Register (6),
-                                         // Write Multiple Coils (15)
+                                         // Write Multiple Coils (15),
+                                         // Write Multiple Registers (16)
                 union {
                     uint16_t data_value; // Write Single Coil (5),
                                          // Write Single Register (6)

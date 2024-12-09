@@ -164,7 +164,7 @@ union TFModbusTCPResponsePayload
                 union {
                     uint8_t coil_values[TF_MODBUS_TCP_MAX_READ_COIL_BYTE_COUNT];     // Read Coils (1),
                                                                                      // Read Discrete Inputs (2)
-                    uint16_t register_values[TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT]; // Read Holding Registers (3),
+                    uint16_t register_values[TF_MODBUS_TCP_MAX_READ_REGISTER_COUNT]; // Read Holding Registers (3),
                                                                                      // Read Input Registers (4)
                     uint8_t exception_sentinel;                                      // Not part of the actual protocol, there for offsetof() calculations
                 };

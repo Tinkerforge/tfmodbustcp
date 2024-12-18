@@ -92,6 +92,33 @@ int main()
 
             return TFModbusTCPExceptionCode::Success;
         }
+        else if (function_code == TFModbusTCPFunctionCode::ReadDiscreteInputs) {
+            TFNetworkUtil::logfln("read_discrete_inputs unit_id=%u start_address=%u data_count=%u data_values=...", unit_id, start_address, data_count);
+
+            for (uint16_t i = 0; i < data_count; ++i) {
+                if (((start_address + i) & 1) == 0) {
+                    static_cast<uint8_t *>(data_values)[i / 8] &= ~static_cast<uint8_t>(1 << (i % 8));
+                }
+                else {
+                    static_cast<uint8_t *>(data_values)[i / 8] |= static_cast<uint8_t>(1 << (i % 8));
+                }
+
+                TFNetworkUtil::logfln("  %u: %u", i, (static_cast<uint8_t *>(data_values)[i / 8] >> (i % 8)) & 1);
+            }
+
+            return TFModbusTCPExceptionCode::Success;
+        }
+        else if (function_code == TFModbusTCPFunctionCode::ReadHoldingRegisters) {
+            TFNetworkUtil::logfln("read_holding_registers unit_id=%u start_address=%u data_count=%u data_values=...", unit_id, start_address, data_count);
+
+            for (uint16_t i = 0; i < data_count; ++i) {
+                static_cast<uint16_t *>(data_values)[i] = start_address + i;
+
+                TFNetworkUtil::logfln("  %u: %u", i, static_cast<uint16_t *>(data_values)[i]);
+            }
+
+            return TFModbusTCPExceptionCode::Success;
+        }
         else if (function_code == TFModbusTCPFunctionCode::ReadInputRegisters) {
             TFNetworkUtil::logfln("read_input_registers unit_id=%u start_address=%u data_count=%u data_values=...", unit_id, start_address, data_count);
 

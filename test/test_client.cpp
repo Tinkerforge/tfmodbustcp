@@ -82,7 +82,7 @@ int main()
 
     TFNetworkUtil::logfln(" connect...");
     client.connect("localhost", 502,
-    [&running, &next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
+    [&next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
         TFNetworkUtil::logfln("connect 1st: %s / %s (%d)",
                               get_tf_generic_tcp_client_connect_result_name(result),
                               strerror(error_number),
@@ -95,7 +95,7 @@ int main()
             //running = false;
         }
     },
-    [&running](TFGenericTCPClientDisconnectReason reason, int error_number) {
+    [](TFGenericTCPClientDisconnectReason reason, int error_number) {
         TFNetworkUtil::logfln("disconnect 1st: %s / %s (%d)",
                               get_tf_generic_tcp_client_disconnect_reason_name(reason),
                               strerror(error_number),
@@ -184,7 +184,7 @@ int main()
 
             TFNetworkUtil::logfln("reconnect...");
             client.connect("localhost", 502,
-            [&running, &next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
+            [&next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
                 TFNetworkUtil::logfln("connect 2nd: %s / %s (%d)",
                                       get_tf_generic_tcp_client_connect_result_name(result),
                                       strerror(error_number),
@@ -197,7 +197,7 @@ int main()
                     //running = false;
                 }
             },
-            [&running](TFGenericTCPClientDisconnectReason reason, int error_number) {
+            [](TFGenericTCPClientDisconnectReason reason, int error_number) {
                 TFNetworkUtil::logfln("disconnect 2nd: %s / %s (%d)",
                                       get_tf_generic_tcp_client_disconnect_reason_name(reason),
                                       strerror(error_number),

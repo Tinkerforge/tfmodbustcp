@@ -353,13 +353,13 @@ bool TFModbusTCPClient::receive_hook()
             return false;
         }
 
-        if (pending_response.header.frame_length < TF_MODBUS_TCP_MIN_FRAME_LENGTH) {
+        if (pending_response.header.frame_length < TF_MODBUS_TCP_MIN_RESPONSE_FRAME_LENGTH) {
             finish_pending_transaction(pending_response.header.transaction_id, TFModbusTCPClientTransactionResult::ResponseShorterThanMinimum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
         }
 
-        if (pending_response.header.frame_length > TF_MODBUS_TCP_MAX_FRAME_LENGTH) {
+        if (pending_response.header.frame_length > TF_MODBUS_TCP_MAX_RESPONSE_FRAME_LENGTH) {
             finish_pending_transaction(pending_response.header.transaction_id, TFModbusTCPClientTransactionResult::ResponseLongerThanMaximum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
@@ -394,7 +394,7 @@ bool TFModbusTCPClient::receive_hook()
 
     if (readable > 0
      && static_cast<size_t>(readable) < sizeof(TFModbusTCPHeader)
-     && pending_response_payload_used + readable <= TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH) {
+     && pending_response_payload_used + readable <= TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH) {
         ssize_t result = receive_response_payload(readable);
 
         if (result <= 0) {

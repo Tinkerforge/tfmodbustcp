@@ -23,11 +23,14 @@
 
 // specification
 #define TF_MODBUS_TCP_HEADER_LENGTH                       7u
-#define TF_MODBUS_TCP_MIN_FRAME_LENGTH                    3u
-#define TF_MODBUS_TCP_MAX_FRAME_LENGTH                    253u
+#define TF_MODBUS_TCP_MIN_REQUEST_FRAME_LENGTH            6u
+#define TF_MODBUS_TCP_MAX_REQUEST_FRAME_LENGTH            253u
+#define TF_MODBUS_TCP_MIN_RESPONSE_FRAME_LENGTH           3u
+#define TF_MODBUS_TCP_MAX_RESPONSE_FRAME_LENGTH           253u
 #define TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH              1u
 #define TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH 2u
-#define TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH                  (TF_MODBUS_TCP_MAX_FRAME_LENGTH - TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH)
+#define TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH          (TF_MODBUS_TCP_MAX_REQUEST_FRAME_LENGTH - TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH)
+#define TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH         (TF_MODBUS_TCP_MAX_RESPONSE_FRAME_LENGTH - TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH)
 #define TF_MODBUS_TCP_MIN_READ_COIL_COUNT                 1u
 #define TF_MODBUS_TCP_MAX_READ_COIL_COUNT                 2000u
 #define TF_MODBUS_TCP_MIN_READ_COIL_BYTE_COUNT            1u
@@ -126,7 +129,7 @@ union TFModbusTCPRequestPayload
             uint16_t register_values[TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT]; // Write Multiple Registers (16)
         };
     };
-    uint8_t bytes[TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH];
+    uint8_t bytes[TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH];
 };
 
 union TFModbusTCPRequest
@@ -135,7 +138,7 @@ union TFModbusTCPRequest
         TFModbusTCPHeader header;
         TFModbusTCPRequestPayload payload;
     };
-    uint8_t bytes[TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH];
+    uint8_t bytes[TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH];
 };
 
 union TFModbusTCPResponsePayload
@@ -174,7 +177,7 @@ union TFModbusTCPResponsePayload
             };
         };
     };
-    uint8_t bytes[TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH];
+    uint8_t bytes[TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH];
 };
 
 union TFModbusTCPResponse
@@ -183,7 +186,7 @@ union TFModbusTCPResponse
         TFModbusTCPHeader header;
         TFModbusTCPResponsePayload payload;
     };
-    uint8_t bytes[TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH];
+    uint8_t bytes[TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH];
 };
 
 #if defined(__GNUC__)

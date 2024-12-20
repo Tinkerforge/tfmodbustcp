@@ -27,7 +27,7 @@ static_assert(offsetof(TFModbusTCPHeader, protocol_id)    == 2, "TFModbusTCPHead
 static_assert(offsetof(TFModbusTCPHeader, frame_length)   == 4, "TFModbusTCPHeader::frame_length has unexpected offset");
 static_assert(offsetof(TFModbusTCPHeader, unit_id)        == 6, "TFModbusTCPHeader::unit_id has unexpected offset");
 
-static_assert(sizeof(TFModbusTCPRequestPayload) == TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH, "TFModbusTCPRequestPayload has unexpected size");
+static_assert(sizeof(TFModbusTCPRequestPayload) == TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH, "TFModbusTCPRequestPayload has unexpected size");
 static_assert(offsetof(TFModbusTCPRequestPayload, function_code)   == 0, "TFModbusTCPRequestPayload::function_code has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, start_address)   == 1, "TFModbusTCPRequestPayload::start_address has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, data_count)      == 3, "TFModbusTCPRequestPayload::data_count has unexpected offset");
@@ -37,11 +37,11 @@ static_assert(offsetof(TFModbusTCPRequestPayload, coil_values)     == 6, "TFModb
 static_assert(offsetof(TFModbusTCPRequestPayload, register_values) == 6, "TFModbusTCPRequestPayload::register_values has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, bytes)           == 0, "TFModbusTCPRequestPayload::header has unexpected offset");
 
-static_assert(sizeof(TFModbusTCPRequest) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH, "TFModbusTCPRequest has unexpected size");
+static_assert(sizeof(TFModbusTCPRequest) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH, "TFModbusTCPRequest has unexpected size");
 static_assert(offsetof(TFModbusTCPRequest, header)  == 0, "TFModbusTCPRequest::header has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequest, payload) == 7, "TFModbusTCPRequest::payload has unexpected offset");
 
-static_assert(sizeof(TFModbusTCPResponsePayload) == TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH, "TFModbusTCPResponsePayload has unexpected size");
+static_assert(sizeof(TFModbusTCPResponsePayload) == TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH, "TFModbusTCPResponsePayload has unexpected size");
 static_assert(offsetof(TFModbusTCPResponsePayload, function_code)   == 0, "TFModbusTCPResponsePayload::function_code has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, exception_code)  == 1, "TFModbusTCPResponsePayload::exception_code has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, byte_count)      == 1, "TFModbusTCPResponsePayload::byte_count has unexpected offset");
@@ -52,7 +52,7 @@ static_assert(offsetof(TFModbusTCPResponsePayload, data_value)      == 3, "TFMod
 static_assert(offsetof(TFModbusTCPResponsePayload, data_count)      == 3, "TFModbusTCPResponsePayload::data_count has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, bytes)           == 0, "TFModbusTCPResponsePayload::bytes has unexpected offset");
 
-static_assert(sizeof(TFModbusTCPResponse) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_PAYLOAD_LENGTH, "TFModbusTCPResponse has unexpected size");
+static_assert(sizeof(TFModbusTCPResponse) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH, "TFModbusTCPResponse has unexpected size");
 static_assert(offsetof(TFModbusTCPResponse, header)  == 0, "TFModbusTCPResponse::header has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponse, payload) == 7, "TFModbusTCPResponse::payload has unexpected offset");
 

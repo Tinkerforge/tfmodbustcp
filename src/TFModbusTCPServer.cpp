@@ -419,7 +419,7 @@ void TFModbusTCPServer::tick()
             uint16_t protocol_id  = ntohs(client->pending_request.header.protocol_id);
 
             if (protocol_id != 0) {
-                debugfln("tick() disconnecting client due to protocol error (client=%p protocol_id=%u)",
+                debugfln("tick() disconnecting client due to protocol error, wrong protocol ID (client=%p protocol_id=%u)",
                          static_cast<void *>(client), protocol_id);
 
                 node = nullptr;
@@ -427,8 +427,8 @@ void TFModbusTCPServer::tick()
                 continue;
             }
 
-            if (frame_length < TF_MODBUS_TCP_MIN_FRAME_LENGTH) {
-                debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
+            if (frame_length < TF_MODBUS_TCP_MIN_REQUEST_FRAME_LENGTH) {
+                debugfln("tick() disconnecting client due to protocol error, frame length too short (client=%p frame_length=%u)",
                          static_cast<void *>(client), frame_length);
 
                 node = nullptr;
@@ -436,8 +436,8 @@ void TFModbusTCPServer::tick()
                 continue;
             }
 
-            if (frame_length > TF_MODBUS_TCP_MAX_FRAME_LENGTH) {
-                debugfln("tick() disconnecting client due to protocol error (client=%p frame_length=%u)",
+            if (frame_length > TF_MODBUS_TCP_MAX_REQUEST_FRAME_LENGTH) {
+                debugfln("tick() disconnecting client due to protocol error, frame length too long (client=%p frame_length=%u)",
                          static_cast<void *>(client), frame_length);
 
                 node = nullptr;

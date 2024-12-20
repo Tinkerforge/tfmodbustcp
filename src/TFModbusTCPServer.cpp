@@ -623,8 +623,8 @@ void TFModbusTCPServer::tick()
             {
                 uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
-                if (data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT
-                 || data_count > TF_MODBUS_TCP_MAX_WRITE_COIL_COUNT
+                if (data_count < TF_MODBUS_TCP_MIN_WRITE_REGISTER_COUNT
+                 || data_count > TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT
                  || client->pending_request.payload.byte_count != data_count * 2) {
                     exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
                 }

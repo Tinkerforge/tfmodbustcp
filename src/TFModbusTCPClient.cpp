@@ -464,7 +464,7 @@ bool TFModbusTCPClient::receive_hook()
     case TFModbusTCPFunctionCode::WriteSingleCoil:
         check_start_address = true;
         check_data_value    = true;
-        expected_data_value = htons(static_cast<uint8_t *>(pending_transaction->buffer)[0] != 0 ? 0xFF00 : 0x0000);
+        expected_data_value = static_cast<uint8_t *>(pending_transaction->buffer)[0] != 0 ? 0xFF00 : 0x0000;
         break;
 
     case TFModbusTCPFunctionCode::WriteSingleRegister:

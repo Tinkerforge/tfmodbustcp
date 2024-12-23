@@ -494,6 +494,18 @@ void TFModbusTCPServer::tick()
         case TFModbusTCPFunctionCode::ReadCoils:
         case TFModbusTCPFunctionCode::ReadDiscreteInputs:
             {
+                uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                               + offsetof(TFModbusTCPRequestPayload, byte_count);
+
+                if (frame_length != expected_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, expected_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
                 uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
                 if (data_count < TF_MODBUS_TCP_MIN_READ_COIL_COUNT
@@ -521,6 +533,18 @@ void TFModbusTCPServer::tick()
         case TFModbusTCPFunctionCode::ReadHoldingRegisters:
         case TFModbusTCPFunctionCode::ReadInputRegisters:
             {
+                uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                               + offsetof(TFModbusTCPRequestPayload, byte_count);
+
+                if (frame_length != expected_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, expected_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
                 uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
                 if (data_count < TF_MODBUS_TCP_MIN_READ_REGISTER_COUNT
@@ -551,6 +575,18 @@ void TFModbusTCPServer::tick()
 
         case TFModbusTCPFunctionCode::WriteSingleCoil:
             {
+                uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                               + offsetof(TFModbusTCPRequestPayload, byte_count);
+
+                if (frame_length != expected_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, expected_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
                 uint16_t data_value = ntohs(client->pending_request.payload.data_value);
 
                 if (data_value != 0x0000 && data_value != 0xFF00) {
@@ -576,6 +612,18 @@ void TFModbusTCPServer::tick()
 
         case TFModbusTCPFunctionCode::WriteSingleRegister:
             {
+                uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                               + offsetof(TFModbusTCPRequestPayload, byte_count);
+
+                if (frame_length != expected_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, expected_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
                 client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
                                                        + offsetof(TFModbusTCPResponsePayload, write_sentinel);
                 client->response.payload.start_address = client->pending_request.payload.start_address;
@@ -598,6 +646,19 @@ void TFModbusTCPServer::tick()
 
         case TFModbusTCPFunctionCode::WriteMultipleCoils:
             {
+                uint16_t min_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                          + offsetof(TFModbusTCPRequestPayload, coil_values)
+                                          + TF_MODBUS_TCP_MIN_WRITE_COIL_BYTE_COUNT;
+
+                if (frame_length < min_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length too short (client=%p frame_length=%u min_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, min_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
                 uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
                 if (data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT
@@ -606,6 +667,19 @@ void TFModbusTCPServer::tick()
                     exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
                 }
                 else {
+                    uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                   + offsetof(TFModbusTCPRequestPayload, coil_values)
+                                                   + client->pending_request.payload.byte_count;
+
+                    if (frame_length != expected_frame_length) {
+                        debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                                 static_cast<void *>(client), frame_length, expected_frame_length);
+
+                        node = nullptr;
+                        disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                        continue;
+                    }
+
                     client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
                                                            + offsetof(TFModbusTCPResponsePayload, write_sentinel);
                     client->response.payload.start_address = client->pending_request.payload.start_address;
@@ -625,6 +699,19 @@ void TFModbusTCPServer::tick()
 
         case TFModbusTCPFunctionCode::WriteMultipleRegisters:
             {
+                uint16_t min_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                          + offsetof(TFModbusTCPRequestPayload, register_values)
+                                          + (TF_MODBUS_TCP_MIN_WRITE_REGISTER_COUNT * 2);
+
+                if (frame_length < min_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length too short (client=%p frame_length=%u min_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, min_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
                 uint16_t data_count = ntohs(client->pending_request.payload.data_count);
 
                 if (data_count < TF_MODBUS_TCP_MIN_WRITE_REGISTER_COUNT
@@ -633,6 +720,19 @@ void TFModbusTCPServer::tick()
                     exception_code = TFModbusTCPExceptionCode::IllegalDataValue;
                 }
                 else {
+                    uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                   + offsetof(TFModbusTCPRequestPayload, register_values)
+                                                   + client->pending_request.payload.byte_count;
+
+                    if (frame_length != expected_frame_length) {
+                        debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                                 static_cast<void *>(client), frame_length, expected_frame_length);
+
+                        node = nullptr;
+                        disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                        continue;
+                    }
+
                     client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
                                                            + offsetof(TFModbusTCPResponsePayload, write_sentinel);
                     client->response.payload.start_address = client->pending_request.payload.start_address;

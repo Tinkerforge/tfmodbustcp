@@ -449,6 +449,7 @@ bool TFModbusTCPClient::receive_hook()
         return true;
     }
 
+    size_t expected_payload_length;
     uint8_t expected_byte_count = 0;
     bool copy_coil_values       = false;
     bool copy_register_values   = false;
@@ -460,25 +461,29 @@ bool TFModbusTCPClient::receive_hook()
     switch (static_cast<TFModbusTCPFunctionCode>(pending_response.payload.function_code)) {
     case TFModbusTCPFunctionCode::ReadCoils:
     case TFModbusTCPFunctionCode::ReadDiscreteInputs:
-        expected_byte_count = (pending_transaction->data_count + 7) / 8;
-        copy_coil_values    = true;
+        expected_byte_count     = (pending_transaction->data_count + 7) / 8;
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, coil_values) + expected_byte_count;
+        copy_coil_values        = true;
         break;
 
     case TFModbusTCPFunctionCode::ReadHoldingRegisters:
     case TFModbusTCPFunctionCode::ReadInputRegisters:
-        expected_byte_count  = pending_transaction->data_count * 2;
-        copy_register_values = true;
+        expected_byte_count     = pending_transaction->data_count * 2;
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, register_values) + expected_byte_count;
+        copy_register_values    = true;
         break;
 
     case TFModbusTCPFunctionCode::WriteSingleCoil:
-        check_start_address = true;
-        check_data_value    = true;
-        expected_data_value = static_cast<uint8_t *>(pending_transaction->buffer)[0] != 0 ? 0xFF00 : 0x0000;
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, write_sentinel);
+        check_start_address     = true;
+        check_data_value        = true;
+        expected_data_value     = static_cast<uint8_t *>(pending_transaction->buffer)[0] != 0 ? 0xFF00 : 0x0000;
         break;
 
     case TFModbusTCPFunctionCode::WriteSingleRegister:
-        check_start_address = true;
-        check_data_value    = true;
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, write_sentinel);
+        check_start_address     = true;
+        check_data_value        = true;
 
         if (register_byte_order == TFModbusTCPByteOrder::Host) {
             expected_data_value = static_cast<uint16_t *>(pending_transaction->buffer)[0];
@@ -491,8 +496,9 @@ bool TFModbusTCPClient::receive_hook()
 
     case TFModbusTCPFunctionCode::WriteMultipleCoils:
     case TFModbusTCPFunctionCode::WriteMultipleRegisters:
-        check_start_address = true;
-        check_data_count    = true;
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, write_sentinel);
+        check_start_address     = true;
+        check_data_count        = true;
         break;
 
     default:
@@ -501,26 +507,29 @@ bool TFModbusTCPClient::receive_hook()
         return true;
     }
 
+    if (pending_response_payload_used < expected_payload_length) {
+        debugfln("receive_hook() payload too short (pending_response_payload_used=%zu expected_payload_length=%zu)",
+                 pending_response_payload_used, expected_payload_length);
+
+        reset_pending_response();
+        finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseTooShort);
+        return true;
+    }
+
+    if (pending_response_payload_used > expected_payload_length) {
+        // Intentionally accept too long responses
+        debugfln("receive_hook() accepting excess payload length (excess_payload_length=%zu)",
+                 pending_response_payload_used - expected_payload_length);
+    }
+
     if (expected_byte_count > 0) {
         if (pending_response.payload.byte_count != expected_byte_count) {
-            debugfln("receive_hook() byte count mismatch (pending_response.payload.byte_count=%u pending_response.header.frame_length=%u expected_byte_count=%u)",
-                     pending_response.payload.byte_count, pending_response.header.frame_length, expected_byte_count);
+            debugfln("receive_hook() byte count mismatch (pending_response.payload.byte_count=%u expected_byte_count=%u)",
+                     pending_response.payload.byte_count, expected_byte_count);
 
             reset_pending_response();
             finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseByteCountMismatch);
             return true;
-        }
-
-        if (pending_response_payload_used < TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count) {
-            reset_pending_response();
-            finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseTooShort);
-            return true;
-        }
-
-        if (pending_response_payload_used > TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count) {
-            // Intentionally accept too long responses
-            debugfln("receive_hook() accepting excess payload (excess_payload_length=%zu)",
-                     pending_response_payload_used - (TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count));
         }
 
         if (pending_transaction->buffer != nullptr) {

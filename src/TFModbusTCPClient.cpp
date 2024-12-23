@@ -262,11 +262,10 @@ void TFModbusTCPClient::tick_hook()
         pending_transaction_deadline = calculate_deadline(pending_transaction->timeout);
 
         TFModbusTCPRequest request;
-        size_t payload_length = offsetof(TFModbusTCPRequestPayload, byte_count);
+        size_t payload_length;
 
         request.header.transaction_id = htons(pending_transaction_id);
         request.header.protocol_id    = htons(0);
-        request.header.frame_length   = htons(TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH + payload_length);
         request.header.unit_id        = pending_transaction->unit_id;
 
         request.payload.function_code = static_cast<uint8_t>(pending_transaction->function_code);
@@ -278,10 +277,12 @@ void TFModbusTCPClient::tick_hook()
         case TFModbusTCPFunctionCode::ReadHoldingRegisters:
         case TFModbusTCPFunctionCode::ReadInputRegisters:
             request.payload.data_count = htons(pending_transaction->data_count);
+            payload_length             = offsetof(TFModbusTCPRequestPayload, byte_count);
             break;
 
         case TFModbusTCPFunctionCode::WriteSingleCoil:
             request.payload.data_value = htons(static_cast<uint8_t *>(pending_transaction->buffer)[0] != 0 ? 0xFF00 : 0x0000);
+            payload_length             = offsetof(TFModbusTCPRequestPayload, byte_count);
             break;
 
         case TFModbusTCPFunctionCode::WriteSingleRegister:
@@ -292,11 +293,13 @@ void TFModbusTCPClient::tick_hook()
                 request.payload.data_value = static_cast<uint16_t *>(pending_transaction->buffer)[0];
             }
 
+            payload_length = offsetof(TFModbusTCPRequestPayload, byte_count);
             break;
 
         case TFModbusTCPFunctionCode::WriteMultipleCoils:
             request.payload.data_count = htons(pending_transaction->data_count);
             request.payload.byte_count = (pending_transaction->data_count + 7) / 8;
+            payload_length             = offsetof(TFModbusTCPRequestPayload, coil_values) + request.payload.byte_count;
 
             memcpy(request.payload.coil_values, pending_transaction->buffer, request.payload.byte_count);
             break;
@@ -304,6 +307,7 @@ void TFModbusTCPClient::tick_hook()
         case TFModbusTCPFunctionCode::WriteMultipleRegisters:
             request.payload.data_count = htons(pending_transaction->data_count);
             request.payload.byte_count = pending_transaction->data_count * 2;
+            payload_length             = offsetof(TFModbusTCPRequestPayload, register_values) + request.payload.byte_count;
 
             if (register_byte_order == TFModbusTCPByteOrder::Host) {
                 uint16_t *buffer = static_cast<uint16_t *>(pending_transaction->buffer);
@@ -317,7 +321,12 @@ void TFModbusTCPClient::tick_hook()
             }
 
             break;
+
+        default:
+            return; // unreachable, just here to stop the compiler from warning about "payload_length may be used uninitialized"
         }
+
+        request.header.frame_length = htons(TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH + payload_length);
 
         if (!send(request.bytes, sizeof(request.header) + payload_length)) {
             int saved_errno = errno;

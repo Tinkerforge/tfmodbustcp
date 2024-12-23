@@ -166,6 +166,11 @@ void TFModbusTCPClient::transact(uint8_t unit_id,
             return;
         }
 
+        if ((static_cast<uint8_t *>(buffer)[0] | 0x01) != 0x01) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument);
+            return;
+        }
+
         break;
 
     case TFModbusTCPFunctionCode::WriteSingleRegister:
@@ -178,6 +183,11 @@ void TFModbusTCPClient::transact(uint8_t unit_id,
 
     case TFModbusTCPFunctionCode::WriteMultipleCoils:
         if (data_count < TF_MODBUS_TCP_MIN_WRITE_COIL_COUNT || data_count > TF_MODBUS_TCP_MAX_WRITE_COIL_COUNT) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument);
+            return;
+        }
+
+        if ((static_cast<uint8_t *>(buffer)[(data_count + 7) / 8 - 1] | ((1u << (data_count % 8)) - 1)) != ((1u << (data_count % 8)) - 1)) {
             callback(TFModbusTCPClientTransactionResult::InvalidArgument);
             return;
         }
@@ -507,6 +517,7 @@ bool TFModbusTCPClient::receive_hook()
         if (pending_transaction->buffer != nullptr) {
             if (copy_coil_values) {
                 memcpy(pending_transaction->buffer, pending_response.payload.coil_values, pending_response.payload.byte_count);
+                static_cast<uint8_t *>(pending_transaction->buffer)[pending_response.payload.byte_count - 1] &= (1u << (pending_transaction->data_count % 8)) - 1;
             }
 
             if (copy_register_values) {

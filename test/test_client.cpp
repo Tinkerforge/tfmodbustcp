@@ -57,8 +57,9 @@ void sigint_handler(int dummy)
 int main()
 {
     uint16_t read_register_buffer[2] = {0, 0};
-    uint16_t write_register_buffer[2] = {0, 0};
-    uint8_t coil_buffer[2] = {0, 0};
+    uint16_t write_register_buffer;
+    uint8_t read_coil_buffer[2] = {0, 0};
+    uint8_t write_coil_buffer;
     char *resolve_host_name = nullptr;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
     TFModbusTCPClient client(TFModbusTCPByteOrder::Host);
@@ -146,31 +147,41 @@ int main()
             });
 
             TFNetworkUtil::logfln("read coils...");
-            client.transact(1, TFModbusTCPFunctionCode::ReadCoils, 122, 10, coil_buffer, 1_s,
-            [&next_read_time, &coil_buffer](TFModbusTCPClientTransactionResult result) {
+            client.transact(1, TFModbusTCPFunctionCode::ReadCoils, 122, 10, read_coil_buffer, 1_s,
+            [&next_read_time, &read_coil_buffer](TFModbusTCPClientTransactionResult result) {
                 TFNetworkUtil::logfln("read coils: %s (%d) [%u %u %u %u %u %u %u %u %u %u]",
                                       get_tf_modbus_tcp_client_transaction_result_name(result),
                                       static_cast<int>(result),
-                                      (coil_buffer[0] >> 0) & 1,
-                                      (coil_buffer[0] >> 1) & 1,
-                                      (coil_buffer[0] >> 2) & 1,
-                                      (coil_buffer[0] >> 3) & 1,
-                                      (coil_buffer[0] >> 4) & 1,
-                                      (coil_buffer[0] >> 5) & 1,
-                                      (coil_buffer[0] >> 6) & 1,
-                                      (coil_buffer[0] >> 7) & 1,
-                                      (coil_buffer[1] >> 0) & 1,
-                                      (coil_buffer[1] >> 1) & 1);
+                                      (read_coil_buffer[0] >> 0) & 1,
+                                      (read_coil_buffer[0] >> 1) & 1,
+                                      (read_coil_buffer[0] >> 2) & 1,
+                                      (read_coil_buffer[0] >> 3) & 1,
+                                      (read_coil_buffer[0] >> 4) & 1,
+                                      (read_coil_buffer[0] >> 5) & 1,
+                                      (read_coil_buffer[0] >> 6) & 1,
+                                      (read_coil_buffer[0] >> 7) & 1,
+                                      (read_coil_buffer[1] >> 0) & 1,
+                                      (read_coil_buffer[1] >> 1) & 1);
 
                 next_read_time = calculate_deadline(100_ms);
             });
 
-            write_register_buffer[0] = 5678;
+            write_register_buffer = 5678;
 
             TFNetworkUtil::logfln("write register...");
-            client.transact(1, TFModbusTCPFunctionCode::WriteSingleRegister, 2233, 1, write_register_buffer, 1_s,
+            client.transact(1, TFModbusTCPFunctionCode::WriteSingleRegister, 2233, 1, &write_register_buffer, 1_s,
             [](TFModbusTCPClientTransactionResult result) {
                 TFNetworkUtil::logfln("write register: %s (%d)",
+                                      get_tf_modbus_tcp_client_transaction_result_name(result),
+                                      static_cast<int>(result));
+            });
+
+            write_coil_buffer = 1;
+
+            TFNetworkUtil::logfln("write coil...");
+            client.transact(1, TFModbusTCPFunctionCode::WriteSingleCoil, 4567, 1, &write_coil_buffer, 1_s,
+            [](TFModbusTCPClientTransactionResult result) {
+                TFNetworkUtil::logfln("write coil: %s (%d)",
                                       get_tf_modbus_tcp_client_transaction_result_name(result),
                                       static_cast<int>(result));
             });

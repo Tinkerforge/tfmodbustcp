@@ -511,6 +511,8 @@ void TFModbusTCPServer::tick()
                                                       ntohs(client->pending_request.payload.start_address),
                                                       data_count,
                                                       client->response.payload.coil_values);
+
+                    client->response.payload.coil_values[client->response.payload.byte_count - 1] &= (1u << (data_count % 8)) - 1;
                 }
             }
 
@@ -608,6 +610,8 @@ void TFModbusTCPServer::tick()
                                                            + offsetof(TFModbusTCPResponsePayload, write_sentinel);
                     client->response.payload.start_address = client->pending_request.payload.start_address;
                     client->response.payload.data_count    = client->pending_request.payload.data_count;
+
+                    client->pending_request.payload.coil_values[client->pending_request.payload.byte_count - 1] &= (1u << (data_count % 8)) - 1;
 
                     exception_code = request_callback(client->pending_request.header.unit_id,
                                                       static_cast<TFModbusTCPFunctionCode>(client->pending_request.payload.function_code),

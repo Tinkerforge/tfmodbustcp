@@ -503,13 +503,13 @@ bool TFModbusTCPClient::receive_hook()
         }
 
         if (pending_response_payload_used < TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count) {
-            // Intentionally accept too long responses
             reset_pending_response();
             finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseTooShort);
             return true;
         }
 
         if (pending_response_payload_used > TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count) {
+            // Intentionally accept too long responses
             debugfln("receive_hook() accepting excess payload (excess_payload_length=%zu)",
                      pending_response_payload_used - (TF_MODBUS_TCP_RESPONSE_PAYLOAD_BEFORE_DATA_LENGTH + pending_response.payload.byte_count));
         }

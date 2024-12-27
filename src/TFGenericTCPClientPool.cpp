@@ -115,6 +115,11 @@ void TFGenericTCPClientPool::acquire(const char *host_name, uint16_t port,
     }
 
     uint32_t slot_id = next_slot_id++;
+
+    if (next_slot_id == 0) {
+        next_slot_id = 1;
+    }
+
     TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
     if (slot->delete_pending) {

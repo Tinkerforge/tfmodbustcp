@@ -73,6 +73,6 @@ private:
     void release(size_t slot_index, size_t share_index, bool disconnect);
 
     bool non_reentrant    = false;
-    uint32_t next_slot_id = 0;
+    uint32_t next_slot_id = 1;
     TFGenericTCPClientPoolSlot *slots[TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT];
 };

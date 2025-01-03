@@ -337,8 +337,6 @@ void TFModbusTCPServer::tick()
                 node->next    = finished_head;
                 finished_head = node;
             }
-
-            node = nullptr;
         }
 
         if (pending_head == nullptr) {

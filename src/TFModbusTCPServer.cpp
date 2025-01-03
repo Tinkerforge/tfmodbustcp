@@ -261,7 +261,7 @@ void TFModbusTCPServer::tick()
     if (readable_fd_count > 0 && FD_ISSET(server_fd, &fdset)) {
         struct sockaddr_in addr_in;
         socklen_t addr_in_length = sizeof(addr_in);
-        int socket_fd = accept(server_fd, reinterpret_cast<struct sockaddr *>(&addr_in), &addr_in_length);
+        int socket_fd            = accept(server_fd, reinterpret_cast<struct sockaddr *>(&addr_in), &addr_in_length);
 
         if (socket_fd < 0) {
             debugfln("tick() accept() failed: %s (%d)", strerror(errno), errno);
@@ -275,12 +275,12 @@ void TFModbusTCPServer::tick()
         connect_callback(peer_address, port);
 
         TFModbusTCPServerClientNode *node_prev = nullptr;
-        TFModbusTCPServerClientNode *node = &client_sentinel;
-        size_t client_count = 0;
+        TFModbusTCPServerClientNode *node      = &client_sentinel;
+        size_t client_count                    = 0;
 
         while (node->next != nullptr) {
             node_prev = node;
-            node = node->next;
+            node      = node->next;
             ++client_count;
         }
 
@@ -322,10 +322,10 @@ void TFModbusTCPServer::tick()
 
     last_idle_check = now_us();
 
-    TFModbusTCPServerClientNode *pending_head = client_sentinel.next;
+    TFModbusTCPServerClientNode *pending_head  = client_sentinel.next;
     TFModbusTCPServerClientNode *finished_head = nullptr;
     TFModbusTCPServerClientNode *finished_tail = nullptr;
-    TFModbusTCPServerClientNode *node = nullptr;
+    TFModbusTCPServerClientNode *node          = nullptr;
 
     while (true) {
         if (node != nullptr) {
@@ -406,7 +406,7 @@ void TFModbusTCPServer::tick()
             }
 
             client->pending_request_header_used += result;
-            pending_request_header_missing -= result;
+            pending_request_header_missing      -= result;
 
             if (pending_request_header_missing > 0) {
                 continue;
@@ -481,7 +481,7 @@ void TFModbusTCPServer::tick()
             }
 
             client->pending_request_payload_used += result;
-            pending_request_payload_missing -= result;
+            pending_request_payload_missing      -= result;
 
             if (pending_request_payload_missing > 0) {
                 continue;

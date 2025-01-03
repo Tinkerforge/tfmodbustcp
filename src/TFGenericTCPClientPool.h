@@ -44,7 +44,7 @@ struct TFGenericTCPClientPoolSlot
 {
     TFGenericTCPClientPoolSlot() { memset(shares, 0, sizeof(shares)); }
 
-    uint32_t id;
+    uint32_t id = 0;
     bool delete_pending = false;
     TFGenericTCPClient *client = nullptr;
     TFGenericTCPClientPoolShare *shares[TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT];

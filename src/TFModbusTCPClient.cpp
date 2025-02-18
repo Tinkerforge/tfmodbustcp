@@ -340,7 +340,7 @@ bool TFModbusTCPClient::receive_hook()
 {
     check_pending_transaction_timeout();
 
-    size_t pending_response_header_missing = sizeof(pending_response.header) - pending_response_header_used;
+    size_t pending_response_header_missing = sizeof(TFModbusTCPHeader) - pending_response_header_used;
 
     if (pending_response_header_missing > 0) {
         ssize_t result = recv(socket_fd, pending_response.header.bytes + pending_response_header_used, pending_response_header_missing, 0);
@@ -372,13 +372,10 @@ bool TFModbusTCPClient::receive_hook()
             return false;
         }
 
-        if (pending_response.header.frame_length < TF_MODBUS_TCP_MIN_RESPONSE_FRAME_LENGTH) {
-            finish_pending_transaction(pending_response.header.transaction_id, TFModbusTCPClientTransactionResult::ResponseShorterThanMinimum);
-            disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
-            return false;
-        }
-
         if (pending_response.header.frame_length > TF_MODBUS_TCP_MAX_RESPONSE_FRAME_LENGTH) {
+            debugfln("receive_hook() frame too long (pending_response.header.frame_length=%u max_response_frame_length=%u)",
+                     pending_response.header.frame_length, TF_MODBUS_TCP_MAX_RESPONSE_FRAME_LENGTH);
+
             finish_pending_transaction(pending_response.header.transaction_id, TFModbusTCPClientTransactionResult::ResponseLongerThanMaximum);
             disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
             return false;
@@ -420,15 +417,40 @@ bool TFModbusTCPClient::receive_hook()
             return false;
         }
 
+        debugfln("receive_hook() appending trailing data to payload (pending_response.header.frame_length=%u+%zd)",
+                 pending_response.header.frame_length, result);
+
         pending_response.header.frame_length += result;
     }
 
-    if (pending_transaction == nullptr || pending_transaction_id != pending_response.header.transaction_id) {
+    if (pending_response.header.frame_length < TF_MODBUS_TCP_MIN_RESPONSE_FRAME_LENGTH) {
+        debugfln("receive_hook() frame too short (pending_response.header.frame_length=%u min_response_frame_length=%u",
+                 pending_response.header.frame_length, TF_MODBUS_TCP_MIN_RESPONSE_FRAME_LENGTH);
+
+        finish_pending_transaction(pending_response.header.transaction_id, TFModbusTCPClientTransactionResult::ResponseShorterThanMinimum);
+        disconnect(TFGenericTCPClientDisconnectReason::ProtocolError, -1);
+        return false;
+    }
+
+    if (pending_transaction == nullptr) {
+        debugfln("receive_hook() no pending transaction for response");
+
+        reset_pending_response();
+        return true;
+    }
+
+    if (pending_transaction_id != pending_response.header.transaction_id) {
+        debugfln("receive_hook() transaction ID mismatch (pending_transaction_id=%u pending_response.header.transaction_id=%u)",
+                 pending_transaction_id, pending_response.header.transaction_id);
+
         reset_pending_response();
         return true;
     }
 
     if (pending_transaction->unit_id != pending_response.header.unit_id) {
+        debugfln("receive_hook() unit ID mismatch (pending_transaction->unit_id=%u pending_response.header.unit_id=%u)",
+                 pending_transaction->unit_id, pending_response.header.unit_id);
+
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseUnitIDMismatch);
         return true;
@@ -444,6 +466,8 @@ bool TFModbusTCPClient::receive_hook()
     }
 
     if ((pending_response.payload.function_code & 0x80) != 0) {
+        debugfln("receive_hook() error response (pending_response.payload.exception_code=0x%02x)", pending_response.payload.exception_code);
+
         reset_pending_response();
         finish_pending_transaction(static_cast<TFModbusTCPClientTransactionResult>(pending_response.payload.exception_code));
         return true;

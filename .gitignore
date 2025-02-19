@@ -1,3 +1,4 @@
 test/test_client
 test/test_pool
 test/test_server
+test/test_sun_spec

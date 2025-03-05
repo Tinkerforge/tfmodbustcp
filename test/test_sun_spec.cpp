@@ -121,6 +121,68 @@ int main()
         1, // DCSta
         UINT16_MAX, UINT16_MAX, // DCAlrm
 
+        // Model 802 header
+        802, // ID
+        62, // L
+
+        // Model 802 block
+        UINT16_MAX, // AHRtg
+        UINT16_MAX, // WHRtg
+        UINT16_MAX, // WChaRteMax
+        UINT16_MAX, // WDisChaRteMax
+        UINT16_MAX, // DisChaRte
+        UINT16_MAX, // SoCMax
+        UINT16_MAX, // SoCMin
+        UINT16_MAX, // SocRsvMax
+        UINT16_MAX, // SoCRsvMin
+        42, // SoC
+        UINT16_MAX, // DoD
+        UINT16_MAX, // SoH
+        UINT16_MAX, UINT16_MAX, // NCyc
+        UINT16_MAX, // ChaSt
+        UINT16_MAX, // LocRemCtl
+        UINT16_MAX, // Hb
+        UINT16_MAX, // CtrlHb
+        UINT16_MAX, // AlmRst
+        UINT16_MAX, // Typ
+        UINT16_MAX, // State
+        UINT16_MAX, // StateVnd
+        UINT16_MAX, UINT16_MAX, // WarrDt
+        UINT16_MAX, UINT16_MAX, // Evt1
+        UINT16_MAX, UINT16_MAX, // Evt2
+        UINT16_MAX, UINT16_MAX, // EvtVnd1
+        UINT16_MAX, UINT16_MAX, // EvtVnd2
+        100, // V
+        UINT16_MAX, // VMax
+        UINT16_MAX, // VMin
+        UINT16_MAX, // CellVMax
+        UINT16_MAX, // CellVMaxStr
+        UINT16_MAX, // CellVMaxMod
+        UINT16_MAX, // CellVMin
+        UINT16_MAX, // CellVMinStr
+        UINT16_MAX, // CellVMinMod
+        UINT16_MAX, // CellVAvg
+        5, // A
+        UINT16_MAX, // AChaMax
+        UINT16_MAX, // ADisChaMax
+        500, // W
+        UINT16_MAX, // ReqInvState
+        (uint16_t)INT16_MIN, // ReqW
+        UINT16_MAX, // SetOp
+        UINT16_MAX, // SetInvState
+        (uint16_t)INT16_MIN, // AHRtg_SF
+        (uint16_t)INT16_MIN, // WHRtg_SF
+        (uint16_t)INT16_MIN, // WChaDisChaMax_SF
+        (uint16_t)INT16_MIN, // DisChaRte_SF
+        (uint16_t)INT16_MIN, // SoC_SF
+        (uint16_t)INT16_MIN, // DoD_SF
+        (uint16_t)INT16_MIN, // SoH_SF
+        (uint16_t)INT16_MIN, // V_SF
+        (uint16_t)INT16_MIN, // CellV_SF
+        (uint16_t)INT16_MIN, // A_SF
+        (uint16_t)INT16_MIN, // AMax_SF
+        (uint16_t)INT16_MIN, // W_SF
+
         // End Model header
         UINT16_MAX,
         0

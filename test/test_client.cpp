@@ -60,7 +60,7 @@ int main()
     uint16_t write_register_buffer;
     uint8_t read_coil_buffer[2] = {0, 0};
     uint8_t write_coil_buffer;
-    char *resolve_host_name = nullptr;
+    char *resolve_host = nullptr;
     std::function<void(uint32_t host_address, int error_number)> resolve_callback;
     TFModbusTCPClient client(TFModbusTCPByteOrder::Host);
     micros_t next_read_time = -1_s;
@@ -76,8 +76,8 @@ int main()
     };
 
     TFNetworkUtil::resolve =
-    [&resolve_host_name, &resolve_callback](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
-        resolve_host_name = strdup(host_name);
+    [&resolve_host, &resolve_callback](const char *host, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+        resolve_host = strdup(host);
         resolve_callback = std::move(callback);
     };
 
@@ -108,11 +108,11 @@ int main()
     next_reconnect = calculate_deadline(5_s);
 
     while (running) {
-        if (resolve_host_name != nullptr && resolve_callback) {
-            hostent *result = gethostbyname(resolve_host_name);
+        if (resolve_host != nullptr && resolve_callback) {
+            hostent *result = gethostbyname(resolve_host);
 
-            free(resolve_host_name);
-            resolve_host_name = nullptr;
+            free(resolve_host);
+            resolve_host = nullptr;
 
             if (result == nullptr) {
                 resolve_callback(0, h_errno);

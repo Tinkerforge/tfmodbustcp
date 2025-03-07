@@ -45,9 +45,9 @@ void TFNetworkUtil::logfln(const char *fmt, ...)
     va_end(args);
 }
 
-static void resolve_dummy(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)
+static void resolve_dummy(const char *host, TFNetworkUtilResolveResultCallback &&callback)
 {
-    (void)host_name;
+    (void)host;
 
     callback(0, ENOSYS);
 }

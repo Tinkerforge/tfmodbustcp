@@ -73,8 +73,8 @@ int main()
     };
 
     TFNetworkUtil::resolve =
-    [](const char *host_name, std::function<void(uint32_t host_address, int error_number)> &&callback) {
-        hostent *result = gethostbyname(host_name);
+    [](const char *host, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+        hostent *result = gethostbyname(host);
 
         if (result == nullptr) {
             callback(0, h_errno);

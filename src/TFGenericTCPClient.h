@@ -103,10 +103,10 @@ public:
     TFGenericTCPClient(TFGenericTCPClient const &other) = delete;
     TFGenericTCPClient &operator=(TFGenericTCPClient const &other) = delete;
 
-    void connect(const char *host_name, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback,
+    void connect(const char *host, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback,
                  TFGenericTCPClientDisconnectCallback &&disconnect_callback); // non-reentrant
     TFGenericTCPClientDisconnectResult disconnect(); // non-reentrant
-    const char *get_host_name() const { return host_name; }
+    const char *get_host() const { return host; }
     uint16_t get_port() const { return port; }
     TFGenericTCPClientConnectionStatus get_connection_status() const;
     void tick(); // non-reentrant
@@ -122,7 +122,7 @@ protected:
     void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 
     bool non_reentrant            = false;
-    char *host_name               = nullptr;
+    char *host                    = nullptr;
     uint16_t port                 = 0;
     TFGenericTCPClientConnectCallback connect_callback;
     TFGenericTCPClientDisconnectCallback pending_disconnect_callback;
@@ -144,7 +144,7 @@ public:
     TFGenericTCPSharedClient(TFGenericTCPSharedClient const &other) = delete;
     TFGenericTCPSharedClient &operator=(TFGenericTCPSharedClient const &other) = delete;
 
-    const char *get_host_name() const { return client->get_host_name(); }
+    const char *get_host() const { return client->get_host(); }
     uint16_t get_port() const { return client->get_port(); }
     TFGenericTCPClientConnectionStatus get_connection_status() const { return client->get_connection_status(); }
 

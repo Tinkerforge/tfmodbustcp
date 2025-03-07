@@ -30,8 +30,8 @@
 #endif
 
 typedef std::function<void(const char *fmt, va_list args)> TFNetworkUtilVLogFLnFunction;
-typedef std::function<void(uint32_t host_address, int error_number)> TFNetworkUtilResolveResultCallback;
-typedef std::function<void(const char *host_name, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveFunction;
+typedef std::function<void(uint32_t address, int error_number)> TFNetworkUtilResolveResultCallback;
+typedef std::function<void(const char *host, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveFunction;
 
 namespace TFNetworkUtil
 {

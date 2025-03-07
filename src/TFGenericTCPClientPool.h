@@ -59,7 +59,7 @@ public:
     TFGenericTCPClientPool(TFGenericTCPClientPool const &other) = delete;
     TFGenericTCPClientPool &operator=(TFGenericTCPClientPool const &other) = delete;
 
-    void acquire(const char *host_name, uint16_t port,
+    void acquire(const char *host, uint16_t port,
                  TFGenericTCPClientPoolConnectCallback &&connect_callback,
                  TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback); // non-reentrant
     void release(TFGenericTCPSharedClient *shared_client); // non-reentrant

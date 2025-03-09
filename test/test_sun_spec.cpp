@@ -52,6 +52,18 @@ void sigint_handler(int dummy)
     running = false;
 }
 
+uint32_t f32_to_u32(float value)
+{
+    union {
+        float f32;
+        uint32_t u32;
+    } u;
+
+    u.f32 = value;
+
+    return u.u32;
+}
+
 int main()
 {
     TFModbusTCPServer server(TFModbusTCPByteOrder::Host);
@@ -66,6 +78,7 @@ int main()
     };
 
 #define R(a, b) (((a) << 8) | (b))
+#define F32(v) (uint16_t)(f32_to_u32(v) >> 16), (uint16_t)(f32_to_u32(v) & 0xFFFF)
 
     uint16_t register_data[] = {
         0x5375, 0x6E53, // Sun Spec ID
@@ -76,7 +89,7 @@ int main()
 
         // Common Model block
         R('T', 'i'), R('n', 'k'), R('e', 'r'), R('f', 'o'), R('r', 'g'), R('e', ' '), R('G', 'm'), R('b', 'H'), 0, 0, 0, 0, 0, 0, 0, 0, // Mn
-        R('S', 'i'), R('m', 'u'), R('l', 'a'), R('t', 'o'), R('r', '\0'), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Md
+        R('S', 'i'), R('m', 'u'), R('l', 'a'), R('t', 'o'), R('r', ' '), R('1', '\0'), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Md
         0, 0, 0, 0, 0, 0, 0, 0, // Opt
         R('1', '.'), R('0', '.'), R('0', '\0'), 0, 0, 0, 0, 0, // Vr
         R('X', '1'), R('Y', '2'), R('Z', '3'), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // SN
@@ -182,6 +195,55 @@ int main()
         (uint16_t)INT16_MIN, // A_SF
         (uint16_t)INT16_MIN, // AMax_SF
         (uint16_t)INT16_MIN, // W_SF
+
+        // Common Model header
+        1, // ID
+        65, // L
+
+        // Common Model block
+        R('T', 'i'), R('n', 'k'), R('e', 'r'), R('f', 'o'), R('r', 'g'), R('e', ' '), R('G', 'm'), R('b', 'H'), 0, 0, 0, 0, 0, 0, 0, 0, // Mn
+        R('S', 'i'), R('m', 'u'), R('l', 'a'), R('t', 'o'), R('r', ' '), R('2', '\0'), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Md
+        0, 0, 0, 0, 0, 0, 0, 0, // Opt
+        R('1', '.'), R('0', '.'), R('0', '\0'), 0, 0, 0, 0, 0, // Vr
+        R('A', '1'), R('B', '2'), R('C', '3'), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // SN
+        1, // DA
+
+        // Model 113 header
+        113, // ID
+        60, // L
+
+        // Model 113 block
+        F32(4321), // A
+        F32(11), // AphA
+        F32(12), // AphB
+        F32(13), // AphC
+        F32(401), // PPVphAB
+        F32(402), // PPVphBC
+        F32(403), // PPVphCA
+        F32(231), // PhVphA
+        F32(232), // PhVphB
+        F32(233), // PhVphC
+        F32(10000), // W
+        F32(50.05), // Hz
+        F32(1), // VA
+        F32(2), // VAr
+        F32(85), // PF
+        F32(987654), // WH
+        F32(100), // DCA
+        F32(1000), // DCV
+        F32(100000), // DCW
+        F32(21.43), // TmpCap
+        F32(22.44), // TmpSnk
+        F32(23.45), // TmpTrns
+        F32(24.46), // TmpOt
+        4, // St
+        UINT16_MAX, // StVnd
+        UINT16_MAX, UINT16_MAX, // Evt1
+        UINT16_MAX, UINT16_MAX, // Evt2
+        UINT16_MAX, UINT16_MAX, // EvtVnd1
+        UINT16_MAX, UINT16_MAX, // EvtVnd2
+        UINT16_MAX, UINT16_MAX, // EvtVnd3
+        UINT16_MAX, UINT16_MAX, // EvtVnd4
 
         // End Model header
         UINT16_MAX,

@@ -66,8 +66,11 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
                               TFModbusTCPServerDisconnectCallback &&disconnect_callback,
                               TFModbusTCPServerRequestCallback &&request_callback)
 {
+    char bind_address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
+    TFNetworkUtil::ipv4_ntoa(bind_address_str, sizeof(bind_address_str), bind_address);
+
     if (non_reentrant) {
-        debugfln("start(bind_address=%u port=%u) non-reentrant", bind_address, port);
+        debugfln("start(bind_address=%s port=%u) non-reentrant", bind_address_str, port);
 
         errno = EWOULDBLOCK;
         return false;
@@ -75,17 +78,17 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
-    debugfln("start(bind_address=%u port=%u)", bind_address, port);
+    debugfln("start(bind_address=%s port=%u)", bind_address_str, port);
 
     if (port == 0 || !connect_callback || !disconnect_callback || !request_callback) {
-        debugfln("start(bind_address=%u port=%u) invalid argument", bind_address, port);
+        debugfln("start(bind_address=%s port=%u) invalid argument", bind_address_str, port);
 
         errno = EINVAL;
         return false;
     }
 
     if (server_fd >= 0) {
-        debugfln("start(bind_address=%u port=%u) already running", bind_address, port);
+        debugfln("start(bind_address=%s port=%u) already running", bind_address_str, port);
 
         errno = EBUSY;
         return false;
@@ -96,8 +99,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (pending_fd < 0) {
         int saved_errno = errno;
 
-        debugfln("start(bind_address=%u port=%u) socket() failed: %s (%d)",
-                 bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%s port=%u) socket() failed: %s (%d)",
+                 bind_address_str, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -108,8 +111,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (setsockopt(pending_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr)) < 0) {
         int saved_errno = errno;
 
-        debugfln("start(bind_address=%u port=%u) setsockopt(SO_REUSEADDR) failed: %s (%d)",
-                 bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%s port=%u) setsockopt(SO_REUSEADDR) failed: %s (%d)",
+                 bind_address_str, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -120,8 +123,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (flags < 0) {
         int saved_errno = errno;
 
-        debugfln("start(bind_address=%u port=%u) fcntl(F_GETFL) failed: %s (%d)",
-                 bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%s port=%u) fcntl(F_GETFL) failed: %s (%d)",
+                 bind_address_str, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -130,8 +133,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (fcntl(pending_fd, F_SETFL, flags | O_NONBLOCK) < 0) {
         int saved_errno = errno;
 
-        debugfln("start(bind_address=%u port=%u) fcntl(F_SETFL) failed: %s (%d)",
-                 bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%s port=%u) fcntl(F_SETFL) failed: %s (%d)",
+                 bind_address_str, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -148,8 +151,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (bind(pending_fd, (struct sockaddr *)&addr_in, sizeof(addr_in)) < 0) {
         int saved_errno = errno;
 
-        debugfln("start(bind_address=%u port=%u) bind() failed: %s (%d)",
-                 bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%s port=%u) bind() failed: %s (%d)",
+                 bind_address_str, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -158,8 +161,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
     if (listen(pending_fd, 5) < 0) {
         int saved_errno = errno;
 
-        debugfln("start(bind_address=%u port=%u) listen() failed: %s (%d)",
-                 bind_address, port, strerror(saved_errno), saved_errno);
+        debugfln("start(bind_address=%s port=%u) listen() failed: %s (%d)",
+                 bind_address_str, port, strerror(saved_errno), saved_errno);
 
         errno = saved_errno;
         return false;
@@ -271,7 +274,10 @@ void TFModbusTCPServer::tick()
         uint32_t peer_address = addr_in.sin_addr.s_addr;
         uint16_t port         = ntohs(addr_in.sin_port);
 
-        debugfln("tick() accepting connection (socket_fd=%d peer_address=%u port=%u)", socket_fd, peer_address, port);
+        char peer_address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
+        TFNetworkUtil::ipv4_ntoa(peer_address_str, sizeof(peer_address_str), peer_address);
+
+        debugfln("tick() accepting connection (socket_fd=%d peer_address=%s port=%u)", socket_fd, peer_address_str, port);
         connect_callback(peer_address, port);
 
         TFModbusTCPServerClientNode *node_prev = nullptr;
@@ -298,7 +304,7 @@ void TFModbusTCPServer::tick()
         }
 
         if (client_count >= TF_MODBUS_TCP_SERVER_MAX_CLIENT_COUNT) {
-            debugfln("tick() no free client for connection (socket_fd=%d peer_address=%u port=%u)", socket_fd, peer_address, port);
+            debugfln("tick() no free client for connection (socket_fd=%d peer_address=%s port=%u)", socket_fd, peer_address_str, port);
 
             shutdown(socket_fd, SHUT_RDWR);
             close(socket_fd);
@@ -307,8 +313,8 @@ void TFModbusTCPServer::tick()
         else {
             TFModbusTCPServerClient *client = new TFModbusTCPServerClient;
 
-            debugfln("tick() allocating client for connection (client=%p socket_fd=%d peer_address=%u port=%u)",
-                     static_cast<void *>(client), socket_fd, peer_address, port);
+            debugfln("tick() allocating client for connection (client=%p socket_fd=%d peer_address=%s port=%u)",
+                     static_cast<void *>(client), socket_fd, peer_address_str, port);
 
             client->socket_fd                      = socket_fd;
             client->last_alive                     = now_us();

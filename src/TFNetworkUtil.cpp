@@ -53,3 +53,16 @@ static void resolve_dummy(const char *host, TFNetworkUtilResolveResultCallback &
 }
 
 TFNetworkUtilResolveFunction TFNetworkUtil::resolve = resolve_dummy;
+
+char *TFNetworkUtil::ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t address)
+{
+    if (buffer_length < 1) {
+        return buffer;
+    }
+
+    if (snprintf(buffer, buffer_length, "%u.%u.%u.%u", address & 0xff, (address >> 8) & 0xff, (address >> 16) & 0xff, (address >> 24) & 0xff) < 0) {
+        buffer[0] = '\0';
+    }
+
+    return buffer;
+}

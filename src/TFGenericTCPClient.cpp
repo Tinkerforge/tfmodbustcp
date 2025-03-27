@@ -251,8 +251,11 @@ void TFGenericTCPClient::tick()
 
             TFNetworkUtil::resolve(host,
             [this, current_resolve_id](uint32_t address, int error_number) {
-                debugfln("tick() resolved (resolve_pending=%d current_resolve_id=%u resolve_id=%u address=%u error_number=%d)",
-                         static_cast<int>(resolve_pending), current_resolve_id, resolve_id, address, error_number);
+                char address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
+                TFNetworkUtil::ipv4_ntoa(address_str, sizeof(address_str), address);
+
+                debugfln("tick() resolved (resolve_pending=%d current_resolve_id=%u resolve_id=%u address=%s error_number=%d)",
+                         static_cast<int>(resolve_pending), current_resolve_id, resolve_id, address_str, error_number);
 
                 if (!resolve_pending || current_resolve_id != resolve_id) {
                     return;
@@ -273,7 +276,10 @@ void TFGenericTCPClient::tick()
                 return; // Waiting for resolve callback
             }
 
-            debugfln("tick() connecting (host=%s pending_host_address=%u)", host, pending_host_address);
+            char pending_host_address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
+            TFNetworkUtil::ipv4_ntoa(pending_host_address_str, sizeof(pending_host_address_str), pending_host_address);
+
+            debugfln("tick() connecting (host=%s pending_host_address=%s)", host, pending_host_address_str);
             pending_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
             if (pending_socket_fd < 0) {

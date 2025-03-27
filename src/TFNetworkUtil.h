@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <functional>
 
 #if TF_NETWORK_UTIL_DEBUG_LOG
@@ -28,6 +29,8 @@
 #else
 #define tf_network_util_debugfln(fmt, ...) do {} while (0)
 #endif
+
+#define TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH 16
 
 typedef std::function<void(const char *fmt, va_list args)> TFNetworkUtilVLogFLnFunction;
 typedef std::function<void(uint32_t address, int error_number)> TFNetworkUtilResolveResultCallback;
@@ -51,4 +54,6 @@ namespace TFNetworkUtil
     private:
         bool *non_reentrant;
     };
+
+    char *ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t address);
 };

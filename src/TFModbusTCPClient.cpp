@@ -187,7 +187,8 @@ void TFModbusTCPClient::transact(uint8_t unit_id,
             return;
         }
 
-        if ((static_cast<uint8_t *>(buffer)[(data_count + 7) / 8 - 1] | ((1u << (data_count % 8)) - 1)) != ((1u << (data_count % 8)) - 1)) {
+        if ((data_count % 8) != 0 &&
+            (static_cast<uint8_t *>(buffer)[(data_count + 7) / 8 - 1] | ((1u << (data_count % 8)) - 1)) != ((1u << (data_count % 8)) - 1)) {
             callback(TFModbusTCPClientTransactionResult::InvalidArgument);
             return;
         }

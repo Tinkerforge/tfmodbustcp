@@ -179,9 +179,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
             share->pending_disconnect_callback = nullptr;
 
-            if (connect_callback) {
-                connect_callback(result, error_number, result == TFGenericTCPClientConnectResult::Connected ? share->shared_client : nullptr);
-            }
+            connect_callback(result, error_number, result == TFGenericTCPClientConnectResult::Connected ? share->shared_client : nullptr);
 
             if (result != TFGenericTCPClientConnectResult::Connected) {
                 release(slot_index, k, false);
@@ -216,10 +214,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
             TFGenericTCPClientPoolDisconnectCallback disconnect_callback = std::move(share->disconnect_callback);
             share->disconnect_callback = nullptr;
 
-            if (disconnect_callback) {
-                disconnect_callback(reason, error_number, share->shared_client);
-            }
-
+            disconnect_callback(reason, error_number, share->shared_client);
             release(slot_index, k, false);
         }
     });
@@ -315,9 +310,7 @@ void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, bool
     TFGenericTCPClientPoolDisconnectCallback disconnect_callback = std::move(share->disconnect_callback);
     share->disconnect_callback = nullptr;
 
-    if (disconnect_callback) {
-        disconnect_callback(TFGenericTCPClientDisconnectReason::Requested, -1, share->shared_client);
-    }
+    disconnect_callback(TFGenericTCPClientDisconnectReason::Requested, -1, share->shared_client);
 
     delete share->shared_client;
     delete share;

@@ -207,11 +207,11 @@ TFGenericTCPClientDisconnectResult TFGenericTCPClient::disconnect()
 
     close();
 
-    if (connect_callback) {
+    if (connect_callback) { // The connect callback is not optional, but it is cleared after the connection is estabilshed
         connect_callback(TFGenericTCPClientConnectResult::AbortRequested, -1);
     }
 
-    if (disconnect_callback) {
+    if (disconnect_callback) { // The disconnect callback is not optional, but it is not set until the connection is estabilshed
         disconnect_callback(TFGenericTCPClientDisconnectReason::Requested, -1);
     }
 
@@ -363,15 +363,15 @@ void TFGenericTCPClient::tick()
             return;
         }
 
-        TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
+        TFGenericTCPClientConnectCallback connect_callback = std::move(this->connect_callback);
 
         socket_fd                   = pending_socket_fd;
         pending_socket_fd           = -1;
-        connect_callback            = nullptr;
+        this->connect_callback      = nullptr;
         disconnect_callback         = std::move(pending_disconnect_callback);
         pending_disconnect_callback = nullptr;
 
-        callback(TFGenericTCPClientConnectResult::Connected, -1);
+        connect_callback(TFGenericTCPClientConnectResult::Connected, -1);
     }
 
     micros_t tick_deadline = calculate_deadline(TF_GENERIC_TCP_CLIENT_MAX_TICK_DURATION);
@@ -437,24 +437,20 @@ bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
 
 void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, int error_number)
 {
-    TFGenericTCPClientConnectCallback callback = std::move(connect_callback);
-    connect_callback = nullptr;
+    TFGenericTCPClientConnectCallback connect_callback = std::move(this->connect_callback);
+    this->connect_callback = nullptr;
 
     close();
 
-    if (callback) {
-        callback(result, error_number);
-    }
+    connect_callback(result, error_number);
 }
 
 void TFGenericTCPClient::disconnect(TFGenericTCPClientDisconnectReason reason, int error_number)
 {
-    TFGenericTCPClientDisconnectCallback callback = std::move(disconnect_callback);
-    disconnect_callback = nullptr;
+    TFGenericTCPClientDisconnectCallback disconnect_callback = std::move(this->disconnect_callback);
+    this->disconnect_callback = nullptr;
 
     close();
 
-    if (callback) {
-        callback(reason, error_number);
-    }
+    disconnect_callback(reason, error_number);
 }

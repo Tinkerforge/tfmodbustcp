@@ -149,6 +149,11 @@ void TFGenericTCPClient::connect(const char *host, uint16_t port,
                                  TFGenericTCPClientConnectCallback &&connect_callback,
                                  TFGenericTCPClientDisconnectCallback &&disconnect_callback)
 {
+    if (!connect_callback) {
+        debugfln("connect(host=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host), port);
+        return;
+    }
+
     if (non_reentrant) {
         debugfln("connect(host=%s port=%u) non-reentrant", TFNetworkUtil::printf_safe(host), port);
         connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1);
@@ -157,7 +162,7 @@ void TFGenericTCPClient::connect(const char *host, uint16_t port,
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
-    if (host == nullptr || strlen(host) == 0 || port == 0 || !connect_callback || !disconnect_callback) {
+    if (host == nullptr || strlen(host) == 0 || port == 0 || !disconnect_callback) {
         debugfln("connect(host=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host), port);
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1);
         return;

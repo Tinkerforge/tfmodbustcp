@@ -127,6 +127,10 @@ void TFModbusTCPClient::transact(uint8_t unit_id,
                                  micros_t timeout,
                                  TFModbusTCPClientTransactionCallback &&callback)
 {
+    if (!callback) {
+        return;
+    }
+
     switch (function_code) {
     case TFModbusTCPFunctionCode::ReadCoils:
         if (data_count < TF_MODBUS_TCP_MIN_READ_COIL_COUNT || data_count > TF_MODBUS_TCP_MAX_READ_COIL_COUNT) {
@@ -208,7 +212,7 @@ void TFModbusTCPClient::transact(uint8_t unit_id,
         return;
     }
 
-    if (buffer == nullptr || timeout < 0_s || !callback) {
+    if (buffer == nullptr || timeout < 0_s) {
         callback(TFModbusTCPClientTransactionResult::InvalidArgument);
         return;
     }

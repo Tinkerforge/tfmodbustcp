@@ -182,7 +182,10 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
             connect_callback(result, error_number, result == TFGenericTCPClientConnectResult::Connected ? share->shared_client : nullptr);
 
             if (result != TFGenericTCPClientConnectResult::Connected) {
-                release(slot_index, k, false);
+                // The disconnect callback is not optional, but it is not set until the connection is
+                // estabilshed. Therefore the release() call will not call the disconnect callback, hence
+                // reason and error_number are unused. Pass error_number as -2 to indicate this
+                release(slot_index, k, TFGenericTCPClientDisconnectReason::Requested /* unused */, -2 /* unused */, false);
             }
         }
     },
@@ -211,11 +214,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
                 continue;
             }
 
-            TFGenericTCPClientPoolDisconnectCallback disconnect_callback = std::move(share->disconnect_callback);
-            share->disconnect_callback = nullptr;
-
-            disconnect_callback(reason, error_number, share->shared_client);
-            release(slot_index, k, false);
+            release(slot_index, k, reason, error_number, false);
         }
     });
 }
@@ -246,7 +245,7 @@ void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client)
                 continue;
             }
 
-            release(i, k, true);
+            release(i, k, TFGenericTCPClientDisconnectReason::Requested, -1, true);
             return;
         }
     }
@@ -284,33 +283,61 @@ void TFGenericTCPClientPool::tick()
     }
 }
 
-void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, bool disconnect)
+void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, TFGenericTCPClientDisconnectReason reason, int error_number, bool disconnect)
 {
     TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
     if (slot == nullptr) {
-        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) invalid slot",
-                 slot_index, share_index, disconnect ? 1 : 0);
+#if TF_NETWORK_UTIL_DEBUG_LOG
+        if (reason == TFGenericTCPClientDisconnectReason::Requested && error_number == -2) {
+            debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) invalid slot",
+                     slot_index, share_index, disconnect ? 1 : 0);
+        }
+        else {
+            debugfln("release(slot_index=%zu share_index=%zu reason=%s error_number=%d disconnect=%d) invalid slot",
+                     slot_index, share_index, get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number, disconnect ? 1 : 0);
+        }
+#endif
+
         return;
     }
 
     TFGenericTCPClientPoolShare *share = slot->shares[share_index];
 
     if (share == nullptr) {
-        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) invalid share",
-                 slot_index, share_index, disconnect ? 1 : 0);
+#if TF_NETWORK_UTIL_DEBUG_LOG
+        if (reason == TFGenericTCPClientDisconnectReason::Requested && error_number == -2) {
+            debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) invalid share",
+                     slot_index, share_index, disconnect ? 1 : 0);
+        }
+        else {
+            debugfln("release(slot_index=%zu share_index=%zu reason=%s error_number=%d disconnect=%d) invalid share",
+                     slot_index, share_index, get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number, disconnect ? 1 : 0);
+        }
+#endif
+
         return;
     }
 
-    debugfln("release(slot_index=%zu share_index=%zu disconnect=%d)",
-             slot_index, share_index, disconnect ? 1 : 0);
+#if TF_NETWORK_UTIL_DEBUG_LOG
+    if (reason == TFGenericTCPClientDisconnectReason::Requested && error_number == -2) {
+        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d)",
+                 slot_index, share_index, disconnect ? 1 : 0);
+    }
+    else {
+        debugfln("release(slot_index=%zu share_index=%zu reason=%s error_number=%d disconnect=%d)",
+                 slot_index, share_index, get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number, disconnect ? 1 : 0);
+    }
+#endif
 
     slot->shares[share_index] = nullptr;
 
     TFGenericTCPClientPoolDisconnectCallback disconnect_callback = std::move(share->disconnect_callback);
     share->disconnect_callback = nullptr;
 
-    disconnect_callback(TFGenericTCPClientDisconnectReason::Requested, -1, share->shared_client);
+    if (disconnect_callback != nullptr) { // The disconnect callback is not optional, but it is not set until the connection is estabilshed
+        disconnect_callback(reason, error_number, share->shared_client);
+    }
 
     delete share->shared_client;
     delete share;
@@ -327,9 +354,18 @@ void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, bool
     }
 
     if (!slot_active) {
-        debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) marking inactive slot for deletion (client=%p host=%s port=%u)",
-                 slot_index, share_index, disconnect ? 1 : 0, static_cast<void *>(slot->client),
-                 TFNetworkUtil::printf_safe(slot->client->get_host()), slot->client->get_port());
+#if TF_NETWORK_UTIL_DEBUG_LOG
+        if (reason == TFGenericTCPClientDisconnectReason::Requested && error_number == -2) {
+            debugfln("release(slot_index=%zu share_index=%zu reason=%s error_number=%d disconnect=%d) marking inactive slot for deletion (client=%p host=%s port=%u)",
+                     slot_index, share_index, get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number, disconnect ? 1 : 0,
+                     static_cast<void *>(slot->client), TFNetworkUtil::printf_safe(slot->client->get_host()), slot->client->get_port());
+        }
+        else {
+            debugfln("release(slot_index=%zu share_index=%zu disconnect=%d) marking inactive slot for deletion (client=%p host=%s port=%u)",
+                     slot_index, share_index, disconnect ? 1 : 0,
+                     static_cast<void *>(slot->client), TFNetworkUtil::printf_safe(slot->client->get_host()), slot->client->get_port());
+        }
+#endif
 
         slot->delete_pending = true;
 

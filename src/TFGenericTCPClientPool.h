@@ -70,7 +70,7 @@ protected:
     virtual TFGenericTCPSharedClient *create_shared_client(TFGenericTCPClient *client) = 0;
 
 private:
-    void release(size_t slot_index, size_t share_index, bool disconnect);
+    void release(size_t slot_index, size_t share_index, TFGenericTCPClientDisconnectReason reason, int error_number, bool disconnect);
 
     bool non_reentrant    = false;
     uint32_t next_slot_id = 1;

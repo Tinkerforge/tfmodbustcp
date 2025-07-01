@@ -78,6 +78,8 @@ struct TFModbusTCPServerClientNode
 struct TFModbusTCPServerClient : public TFModbusTCPServerClientNode
 {
     int socket_fd;
+    uint32_t peer_address;
+    uint16_t port;
     micros_t last_alive;
     TFModbusTCPRequest pending_request;
     size_t pending_request_header_used;

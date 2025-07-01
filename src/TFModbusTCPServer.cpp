@@ -317,6 +317,8 @@ void TFModbusTCPServer::tick()
                      static_cast<void *>(client), socket_fd, peer_address_str, port);
 
             client->socket_fd                      = socket_fd;
+            client->peer_address                   = peer_address;
+            client->port                           = port;
             client->last_alive                     = now_us();
             client->pending_request_header_used    = 0;
             client->pending_request_header_checked = false;
@@ -802,23 +804,9 @@ void TFModbusTCPServer::tick()
 
 void TFModbusTCPServer::disconnect(TFModbusTCPServerClient *client, TFModbusTCPServerDisconnectReason reason, int error_number)
 {
-    struct sockaddr_in addr_in;
-    socklen_t addr_in_length = sizeof(addr_in);
-    uint32_t peer_address;
-    uint16_t port;
-
-    if (getpeername(client->socket_fd, (struct sockaddr *)&addr_in, &addr_in_length) < 0) {
-        peer_address = 0;
-        port         = 0;
-    }
-    else {
-        peer_address = addr_in.sin_addr.s_addr;
-        port         = ntohs(addr_in.sin_port);
-    }
-
     shutdown(client->socket_fd, SHUT_RDWR);
     close(client->socket_fd);
-    disconnect_callback(peer_address, port, reason, error_number);
+    disconnect_callback(client->peer_address, client->port, reason, error_number);
     delete client;
 }
 

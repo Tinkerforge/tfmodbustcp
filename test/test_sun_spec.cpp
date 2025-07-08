@@ -80,6 +80,8 @@ int main()
 #define R(a, b) (((a) << 8) | (b))
 #define F32(v) (uint16_t)(f32_to_u32(v) >> 16), (uint16_t)(f32_to_u32(v) & 0xFFFF)
 
+    uint16_t base_address = 40000;
+
     uint16_t register_data[] = {
         0x5375, 0x6E53, // Sun Spec ID
 
@@ -263,7 +265,7 @@ int main()
                               get_tf_modbus_tcp_server_client_disconnect_reason_name(reason),
                               error_number);
     },
-    [register_data, register_count](uint8_t unit_id, TFModbusTCPFunctionCode function_code, uint16_t start_address, uint16_t data_count, void *data_values) {
+    [base_address, register_data, register_count](uint8_t unit_id, TFModbusTCPFunctionCode function_code, uint16_t start_address, uint16_t data_count, void *data_values) {
         if (unit_id != 1) {
             return TFModbusTCPExceptionCode::GatewayPathUnvailable;
         }
@@ -274,11 +276,11 @@ int main()
 
         TFNetworkUtil::logfln("read_holding_registers unit_id=%u start_address=%u data_count=%u data_values=...", unit_id, start_address, data_count);
 
-        if (start_address < 40000) {
+        if (start_address < base_address) {
             return TFModbusTCPExceptionCode::IllegalDataAddress;
         }
 
-        uint16_t register_offset = start_address - 40000;
+        uint16_t register_offset = start_address - base_address;
 
         if (register_offset + data_count > register_count) {
             return TFModbusTCPExceptionCode::IllegalDataAddress;

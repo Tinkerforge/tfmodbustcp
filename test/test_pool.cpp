@@ -102,7 +102,7 @@ int main()
 
         TFNetworkUtil::logfln("read1... client=%p", static_cast<void *>(client));
         static_cast<TFModbusTCPSharedClient *>(client)->transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, buffer1, 1_s,
-        [&pool, client, &buffer1](TFModbusTCPClientTransactionResult result) {
+        [&pool, client, &buffer1](TFModbusTCPClientTransactionResult result, const char *error_message) {
             union {
                 float f;
                 uint16_t r[2];
@@ -111,9 +111,11 @@ int main()
             c32.r[0] = buffer1[0];
             c32.r[1] = buffer1[1];
 
-            TFNetworkUtil::logfln("read1: %s (%d) [%u %u -> %f]",
+            TFNetworkUtil::logfln("read1: %s (%d)%s%s [%u %u -> %f]",
                                   get_tf_modbus_tcp_client_transaction_result_name(result),
                                   static_cast<int>(result),
+                                  error_message != nullptr ? " / " : "",
+                                  error_message != nullptr ? error_message : "",
                                   c32.r[0],
                                   c32.r[1],
                                   static_cast<double>(c32.f));
@@ -148,7 +150,7 @@ int main()
 
         TFNetworkUtil::logfln("read2... client=%p", static_cast<void *>(client));
         static_cast<TFModbusTCPSharedClient *>(client)->transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, buffer2, 1_s,
-        [&pool, &buffer2](TFModbusTCPClientTransactionResult result) {
+        [&pool, &buffer2](TFModbusTCPClientTransactionResult result, const char *error_message) {
             union {
                 float f;
                 uint16_t r[2];
@@ -157,9 +159,11 @@ int main()
             c32.r[0] = buffer2[0];
             c32.r[1] = buffer2[1];
 
-            TFNetworkUtil::logfln("read2: %s (%d) [%u %u -> %f]",
+            TFNetworkUtil::logfln("read2: %s (%d)%s%s [%u %u -> %f]",
                                   get_tf_modbus_tcp_client_transaction_result_name(result),
                                   static_cast<int>(result),
+                                  error_message != nullptr ? " / " : "",
+                                  error_message != nullptr ? error_message : "",
                                   c32.r[0],
                                   c32.r[1],
                                   static_cast<double>(c32.f));

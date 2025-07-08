@@ -60,12 +60,12 @@ enum class TFModbusTCPClientTransactionResult
     ResponseStartAddressMismatch,
     ResponseDataValueMismatch,
     ResponseDataCountMismatch,
-    ResponseTooShort,
+    ResponseShorterThanExpected,
 };
 
 const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTransactionResult result);
 
-typedef std::function<void(TFModbusTCPClientTransactionResult result)> TFModbusTCPClientTransactionCallback;
+typedef std::function<void(TFModbusTCPClientTransactionResult result, const char *error_message)> TFModbusTCPClientTransactionCallback;
 
 struct TFModbusTCPClientTransaction
 {
@@ -98,9 +98,9 @@ private:
     bool receive_hook() override;
 
     ssize_t receive_response_payload(size_t length);
-    void finish_pending_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result);
-    void finish_pending_transaction(TFModbusTCPClientTransactionResult result);
-    void finish_all_transactions(TFModbusTCPClientTransactionResult result);
+    void finish_pending_transaction(uint16_t transaction_id, TFModbusTCPClientTransactionResult result, const char *error_message);
+    void finish_pending_transaction(TFModbusTCPClientTransactionResult result, const char *error_message);
+    void finish_all_transactions(TFModbusTCPClientTransactionResult result, const char *error_message);
     void check_pending_transaction_timeout();
     void reset_pending_response();
 

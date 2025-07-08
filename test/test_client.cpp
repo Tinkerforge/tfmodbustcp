@@ -129,7 +129,7 @@ int main()
 
             TFNetworkUtil::logfln("read input registers...");
             client.transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, read_register_buffer, 1_s,
-            [&read_register_buffer](TFModbusTCPClientTransactionResult result) {
+            [&read_register_buffer](TFModbusTCPClientTransactionResult result, const char *error_message) {
                 union {
                     float f;
                     uint16_t r[2];
@@ -138,9 +138,11 @@ int main()
                 c32.r[0] = read_register_buffer[0];
                 c32.r[1] = read_register_buffer[1];
 
-                TFNetworkUtil::logfln("read input registers: %s (%d) [%u %u -> %f]",
+                TFNetworkUtil::logfln("read input registers: %s (%d)%s%s [%u %u -> %f]",
                                       get_tf_modbus_tcp_client_transaction_result_name(result),
                                       static_cast<int>(result),
+                                      error_message != nullptr ? " / " : "",
+                                      error_message != nullptr ? error_message : "",
                                       c32.r[0],
                                       c32.r[1],
                                       static_cast<double>(c32.f));
@@ -148,10 +150,12 @@ int main()
 
             TFNetworkUtil::logfln("read coils...");
             client.transact(1, TFModbusTCPFunctionCode::ReadCoils, 122, 10, read_coil_buffer, 1_s,
-            [&next_read_time, &read_coil_buffer](TFModbusTCPClientTransactionResult result) {
-                TFNetworkUtil::logfln("read coils: %s (%d) [%u %u %u %u %u %u %u %u %u %u]",
+            [&next_read_time, &read_coil_buffer](TFModbusTCPClientTransactionResult result, const char *error_message) {
+                TFNetworkUtil::logfln("read coils: %s (%d)%s%s [%u %u %u %u %u %u %u %u %u %u]",
                                       get_tf_modbus_tcp_client_transaction_result_name(result),
                                       static_cast<int>(result),
+                                      error_message != nullptr ? " / " : "",
+                                      error_message != nullptr ? error_message : "",
                                       (read_coil_buffer[0] >> 0) & 1,
                                       (read_coil_buffer[0] >> 1) & 1,
                                       (read_coil_buffer[0] >> 2) & 1,
@@ -170,20 +174,24 @@ int main()
 
             TFNetworkUtil::logfln("write register...");
             client.transact(1, TFModbusTCPFunctionCode::WriteSingleRegister, 2233, 1, &write_register_buffer, 1_s,
-            [](TFModbusTCPClientTransactionResult result) {
-                TFNetworkUtil::logfln("write register: %s (%d)",
+            [](TFModbusTCPClientTransactionResult result, const char *error_message) {
+                TFNetworkUtil::logfln("write register: %s (%d)%s%s",
                                       get_tf_modbus_tcp_client_transaction_result_name(result),
-                                      static_cast<int>(result));
+                                      static_cast<int>(result),
+                                      error_message != nullptr ? " / " : "",
+                                      error_message != nullptr ? error_message : "");
             });
 
             write_coil_buffer = 1;
 
             TFNetworkUtil::logfln("write coil...");
             client.transact(1, TFModbusTCPFunctionCode::WriteSingleCoil, 4567, 1, &write_coil_buffer, 1_s,
-            [](TFModbusTCPClientTransactionResult result) {
-                TFNetworkUtil::logfln("write coil: %s (%d)",
+            [](TFModbusTCPClientTransactionResult result, const char *error_message) {
+                TFNetworkUtil::logfln("write coil: %s (%d)%s%s",
                                       get_tf_modbus_tcp_client_transaction_result_name(result),
-                                      static_cast<int>(result));
+                                      static_cast<int>(result),
+                                      error_message != nullptr ? " / " : "",
+                                      error_message != nullptr ? error_message : "");
             });
         }
 

@@ -86,9 +86,10 @@ int main()
 
     TFNetworkUtil::logfln("acquire1...");
     pool.acquire("localhost", 502,
-    [&pool, &client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client) {
-        TFNetworkUtil::logfln("connect1 1st client=%p: %s / %s (%d)",
+    [&pool, &client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+        TFNetworkUtil::logfln("connect1 1st client=%p level=%s: %s / %s (%d)",
                               static_cast<void *>(client),
+                              get_tf_generic_tcp_client_pool_share_level_name(level),
                               get_tf_generic_tcp_client_connect_result_name(result),
                               strerror(error_number),
                               error_number);
@@ -121,9 +122,10 @@ int main()
                                   static_cast<double>(c32.f));
         });
     },
-    [&client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client) {
-        TFNetworkUtil::logfln("disconnect1 1st client=%p: %s / %s (%d)",
+    [&client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+        TFNetworkUtil::logfln("disconnect1 1st client=%p level=%s: %s / %s (%d)",
                               static_cast<void *>(client),
+                              get_tf_generic_tcp_client_pool_share_level_name(level),
                               get_tf_generic_tcp_client_disconnect_reason_name(reason),
                               strerror(error_number),
                               error_number);
@@ -133,10 +135,11 @@ int main()
     });
 
     TFNetworkUtil::logfln("acquire2...");
-    pool.acquire("localhost", 1502,
-    [&pool, &client_ptr2, &buffer2](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client) {
-        TFNetworkUtil::logfln("connect2 client=%p: %s / %s (%d)",
+    pool.acquire("localhost", 502,
+    [&pool, &client_ptr2, &buffer2](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+        TFNetworkUtil::logfln("connect2 client=%p level=%s: %s / %s (%d)",
                               static_cast<void *>(client),
+                              get_tf_generic_tcp_client_pool_share_level_name(level),
                               get_tf_generic_tcp_client_connect_result_name(result),
                               strerror(error_number),
                               error_number);
@@ -169,9 +172,10 @@ int main()
                                   static_cast<double>(c32.f));
         });
     },
-    [&client_ptr2](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client) {
-        TFNetworkUtil::logfln("disconnect2 client=%p: %s / %s (%d)",
+    [&client_ptr2](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+        TFNetworkUtil::logfln("disconnect2 client=%p level=%s: %s / %s (%d)",
                               static_cast<void *>(client),
+                              get_tf_generic_tcp_client_pool_share_level_name(level),
                               get_tf_generic_tcp_client_disconnect_reason_name(reason),
                               strerror(error_number),
                               error_number);
@@ -192,18 +196,20 @@ int main()
 
             TFNetworkUtil::logfln("reacquire1...");
             pool.acquire("localhost", 502,
-            [&pool, &client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client) {
-                TFNetworkUtil::logfln("connect1 2nd client=%p: %s / %s (%d)",
+            [&pool, &client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+                TFNetworkUtil::logfln("connect1 2nd client=%p level=%s: %s / %s (%d)",
                                       static_cast<void *>(client),
+                                      get_tf_generic_tcp_client_pool_share_level_name(level),
                                       get_tf_generic_tcp_client_connect_result_name(result),
                                       strerror(error_number),
                                       error_number);
 
                 client_ptr1 = client;
             },
-            [&client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client) {
-                TFNetworkUtil::logfln("disconnect1 2nd client=%p: %s / %s (%d)",
+            [&client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+                TFNetworkUtil::logfln("disconnect1 2nd client=%p level=%s: %s / %s (%d)",
                                       static_cast<void *>(client),
+                                      get_tf_generic_tcp_client_pool_share_level_name(level),
                                       get_tf_generic_tcp_client_disconnect_reason_name(reason),
                                       strerror(error_number),
                                       error_number);

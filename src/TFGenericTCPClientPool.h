@@ -29,8 +29,17 @@
 #define TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT 8
 #endif
 
-typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *shared_client)> TFGenericTCPClientPoolConnectCallback;
-typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *shared_client)> TFGenericTCPClientPoolDisconnectCallback;
+enum class TFGenericTCPClientPoolShareLevel
+{
+    Undefined,
+    Primary,
+    Secondary,
+};
+
+const char *get_tf_generic_tcp_client_pool_share_level_name(TFGenericTCPClientPoolShareLevel level);
+
+typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *shared_client, TFGenericTCPClientPoolShareLevel share_level)> TFGenericTCPClientPoolConnectCallback;
+typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *shared_client, TFGenericTCPClientPoolShareLevel share_level)> TFGenericTCPClientPoolDisconnectCallback;
 
 struct TFGenericTCPClientPoolShare
 {
@@ -48,6 +57,7 @@ struct TFGenericTCPClientPoolSlot
     bool delete_pending = false;
     TFGenericTCPClient *client = nullptr;
     TFGenericTCPClientPoolShare *shares[TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT];
+    size_t share_count = 0;
 };
 
 class TFGenericTCPClientPool

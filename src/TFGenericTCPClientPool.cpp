@@ -25,6 +25,22 @@
 
 #define debugfln(fmt, ...) tf_network_util_debugfln("TFGenericTCPClientPool[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
 
+const char *get_tf_generic_tcp_client_pool_share_level_name(TFGenericTCPClientPoolShareLevel level)
+{
+    switch (level) {
+    case TFGenericTCPClientPoolShareLevel::Undefined:
+        return "Undefined";
+
+    case TFGenericTCPClientPoolShareLevel::Primary:
+        return "Primary";
+
+    case TFGenericTCPClientPoolShareLevel::Secondary:
+        return "Secondary";
+    }
+
+    return "<Unknown>";
+}
+
 // non-reentrant
 void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
                                      TFGenericTCPClientPoolConnectCallback &&connect_callback,
@@ -37,7 +53,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
     if (non_reentrant) {
         debugfln("acquire(host=%s port=%u) non-reentrant", TFNetworkUtil::printf_safe(host), port);
-        connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1, nullptr);
+        connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
         return;
     }
 
@@ -45,7 +61,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
     if (host == nullptr || strlen(host) == 0 || port == 0 || !disconnect_callback) {
         debugfln("acquire(host=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host), port);
-        connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1, nullptr);
+        connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
         return;
     }
 
@@ -89,7 +105,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
             }
 
             if (share_index < 0) {
-                connect_callback(TFGenericTCPClientConnectResult::NoFreePoolShare, -1, nullptr);
+                connect_callback(TFGenericTCPClientConnectResult::NoFreePoolShare, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
                 return;
             }
 
@@ -98,7 +114,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
             if (slot->client->get_connection_status() == TFGenericTCPClientConnectionStatus::Connected) {
                 share->disconnect_callback = std::move(disconnect_callback);
-                connect_callback(TFGenericTCPClientConnectResult::Connected, -1, share->shared_client);
+                connect_callback(TFGenericTCPClientConnectResult::Connected, -1, share->shared_client, TFGenericTCPClientPoolShareLevel::Secondary);
             }
             else {
                 share->connect_callback = std::move(connect_callback);
@@ -106,12 +122,13 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
             }
 
             slot->shares[share_index] = share;
+            ++slot->share_count;
             return;
         }
     }
 
     if (slot_index < 0) {
-        connect_callback(TFGenericTCPClientConnectResult::NoFreePoolSlot, -1, nullptr);
+        connect_callback(TFGenericTCPClientConnectResult::NoFreePoolSlot, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
         return;
     }
 
@@ -147,6 +164,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
     share->connect_callback = std::move(connect_callback);
     share->pending_disconnect_callback = std::move(disconnect_callback);
     slot->shares[0] = share;
+    ++slot->share_count;
 
     slot->client->connect(host, port,
     [this, slot_index, slot_id](TFGenericTCPClientConnectResult result, int error_number) {
@@ -162,6 +180,8 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
         debugfln("acquire(...) connected (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
                  get_tf_generic_tcp_client_connect_result_name(result), error_number,
                  slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
+
+        TFGenericTCPClientPoolShareLevel share_level = TFGenericTCPClientPoolShareLevel::Primary;
 
         for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++k) {
             TFGenericTCPClientPoolShare *share = slot->shares[k];
@@ -179,7 +199,9 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
             share->pending_disconnect_callback = nullptr;
 
-            connect_callback(result, error_number, result == TFGenericTCPClientConnectResult::Connected ? share->shared_client : nullptr);
+            connect_callback(result, error_number, result == TFGenericTCPClientConnectResult::Connected ? share->shared_client : nullptr, share_level);
+
+            share_level = TFGenericTCPClientPoolShareLevel::Secondary;
 
             if (result != TFGenericTCPClientConnectResult::Connected) {
                 // The disconnect callback is not optional, but it is not set until the connection is
@@ -331,29 +353,19 @@ void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, TFGe
 #endif
 
     slot->shares[share_index] = nullptr;
+    --slot->share_count;
 
     TFGenericTCPClientPoolDisconnectCallback disconnect_callback = std::move(share->disconnect_callback);
     share->disconnect_callback = nullptr;
 
     if (disconnect_callback != nullptr) { // The disconnect callback is not optional, but it is not set until the connection is estabilshed
-        disconnect_callback(reason, error_number, share->shared_client);
+        disconnect_callback(reason, error_number, share->shared_client, slot->share_count == 0 ? TFGenericTCPClientPoolShareLevel::Primary : TFGenericTCPClientPoolShareLevel::Secondary);
     }
 
     delete share->shared_client;
     delete share;
 
-    bool slot_active = false;
-
-    for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++k) {
-        TFGenericTCPClientPoolShare *share = slot->shares[k];
-
-        if (share != nullptr) {
-            slot_active = true;
-            break;
-        }
-    }
-
-    if (!slot_active) {
+    if (slot->share_count == 0) {
 #if TF_NETWORK_UTIL_DEBUG_LOG
         if (reason == TFGenericTCPClientDisconnectReason::Requested && error_number == -2) {
             debugfln("release(slot_index=%zu share_index=%zu reason=%s error_number=%d disconnect=%d) marking inactive slot for deletion (client=%p host=%s port=%u)",

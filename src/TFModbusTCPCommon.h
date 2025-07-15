@@ -43,6 +43,8 @@
 #define TF_MODBUS_TCP_MAX_READ_REGISTER_COUNT             125u
 #define TF_MODBUS_TCP_MIN_WRITE_REGISTER_COUNT            1u
 #define TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT            123u
+#define TF_MODBUS_TCP_MIN_DATA_BYTE_COUNT                 1u
+#define TF_MODBUS_TCP_MAX_DATA_BYTE_COUNT                 250u
 
 enum class TFModbusTCPByteOrder
 {

@@ -482,7 +482,7 @@ bool TFModbusTCPClient::receive_hook()
                  pending_response.payload.function_code, static_cast<uint8_t>(pending_transaction->function_code));
 
         snprintf(error_message, sizeof(error_message), "Actual function code is 0x%02x, expected is 0x%02x or 0x%02x",
-                 pending_response.payload.function_code, static_cast<uint8_t>(pending_transaction->function_code), static_cast<uint8_t>(pending_transaction->function_code | 0x80));
+                 pending_response.payload.function_code, static_cast<uint8_t>(pending_transaction->function_code), static_cast<uint8_t>(pending_transaction->function_code) | 0x80);
         reset_pending_response();
         finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseFunctionCodeMismatch, error_message);
         return true;

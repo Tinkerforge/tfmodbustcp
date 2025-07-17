@@ -600,7 +600,7 @@ void TFModbusTCPServer::tick()
                 }
                 else {
                     client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                           + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                                                           + offsetof(TFModbusTCPResponsePayload, or_mask);
                     client->response.payload.start_address = client->pending_request.payload.start_address;
                     client->response.payload.data_value    = client->pending_request.payload.data_value;
 
@@ -631,7 +631,7 @@ void TFModbusTCPServer::tick()
                 }
 
                 client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                       + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                                                       + offsetof(TFModbusTCPResponsePayload, or_mask);
                 client->response.payload.start_address = client->pending_request.payload.start_address;
                 client->response.payload.data_value    = client->pending_request.payload.data_value;
 
@@ -687,7 +687,7 @@ void TFModbusTCPServer::tick()
                     }
 
                     client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                           + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                                                           + offsetof(TFModbusTCPResponsePayload, or_mask);
                     client->response.payload.start_address = client->pending_request.payload.start_address;
                     client->response.payload.data_count    = client->pending_request.payload.data_count;
 
@@ -742,7 +742,7 @@ void TFModbusTCPServer::tick()
                     }
 
                     client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
-                                                           + offsetof(TFModbusTCPResponsePayload, write_sentinel);
+                                                           + offsetof(TFModbusTCPResponsePayload, or_mask);
                     client->response.payload.start_address = client->pending_request.payload.start_address;
                     client->response.payload.data_count    = client->pending_request.payload.data_count;
 
@@ -758,6 +758,42 @@ void TFModbusTCPServer::tick()
                                                       data_count,
                                                       client->pending_request.payload.register_values);
                 }
+            }
+
+            break;
+
+        case TFModbusTCPFunctionCode::MaskWriteRegister:
+            {
+                uint16_t expected_frame_length = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                               + offsetof(TFModbusTCPRequestPayload, sentinel);
+
+                if (frame_length != expected_frame_length) {
+                    debugfln("tick() disconnecting client due to protocol error, frame length mismatch (client=%p frame_length=%u expected_frame_length=%u)",
+                             static_cast<void *>(client), frame_length, expected_frame_length);
+
+                    node = nullptr;
+                    disconnect(client, TFModbusTCPServerDisconnectReason::ProtocolError, -1);
+                    continue;
+                }
+
+                client->response.header.frame_length   = TF_MODBUS_TCP_FRAME_IN_HEADER_LENGTH
+                                                       + offsetof(TFModbusTCPResponsePayload, sentinel);
+                client->response.payload.start_address = client->pending_request.payload.start_address;
+                client->response.payload.and_mask      = client->pending_request.payload.and_mask;
+                client->response.payload.or_mask       = client->pending_request.payload.or_mask;
+
+                uint16_t register_values[2] = {client->pending_request.payload.and_mask, client->pending_request.payload.or_mask};
+
+                if (register_byte_order == TFModbusTCPByteOrder::Host) {
+                    register_values[0] = ntohs(register_values[0]);
+                    register_values[1] = ntohs(register_values[1]);
+                }
+
+                exception_code = request_callback(client->pending_request.header.unit_id,
+                                                  TFModbusTCPFunctionCode::MaskWriteRegister,
+                                                  ntohs(client->pending_request.payload.start_address),
+                                                  2,
+                                                  register_values);
             }
 
             break;

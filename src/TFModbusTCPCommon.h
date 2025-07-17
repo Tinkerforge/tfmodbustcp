@@ -64,6 +64,7 @@ enum class TFModbusTCPFunctionCode : uint8_t
     WriteSingleRegister    = 6,
     WriteMultipleCoils     = 15,
     WriteMultipleRegisters = 16,
+    MaskWriteRegister      = 22,
 };
 
 const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode function_code);
@@ -106,29 +107,41 @@ union TFModbusTCPRequestPayload
 {
     struct [[gnu::packed]] {
         uint8_t function_code;
-        uint16_t start_address;  // Read Coils (1),
-                                 // Read Discrete Inputs (2),
-                                 // Read Holding Registers (3),
-                                 // Read Input Registers(4),
-                                 // Write Single Coil (5),
-                                 // Write Single Register (6),
-                                 // Write Multiple Coils (15),
-                                 // Write Multiple Registers (16)
+        uint16_t start_address;          // Read Coils (1),
+                                         // Read Discrete Inputs (2),
+                                         // Read Holding Registers (3),
+                                         // Read Input Registers(4),
+                                         // Write Single Coil (5),
+                                         // Write Single Register (6),
+                                         // Write Multiple Coils (15),
+                                         // Write Multiple Registers (16)
+                                         // Mask Write Register (22)
         union {
-            uint16_t data_count; // Read Coils (1),
-                                 // Read Discrete Inputs (2),
-                                 // Read Holding Registers (3),
-                                 // Read Input Registers (4),
-                                 // Write Multiple Coils (15),
-                                 // Write Multiple registers (16)
-            uint16_t data_value; // Write Single Coil (5),
-                                 // Write Single Register (6)
-        };
-        uint8_t byte_count;      // Write Multiple Coils (15),
-                                 // Write Multiple Registers (16)
-        union {
-            uint8_t coil_values[TF_MODBUS_TCP_MAX_WRITE_COIL_BYTE_COUNT];     // Write Multiple Coils (15),
-            uint16_t register_values[TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT]; // Write Multiple Registers (16)
+            struct [[gnu::packed]] {
+                union {
+                    uint16_t data_count; // Read Coils (1),
+                                         // Read Discrete Inputs (2),
+                                         // Read Holding Registers (3),
+                                         // Read Input Registers (4),
+                                         // Write Multiple Coils (15),
+                                         // Write Multiple registers (16)
+                    uint16_t data_value; // Write Single Coil (5),
+                                         // Write Single Register (6)
+                };
+                struct [[gnu::packed]] {
+                    uint8_t byte_count;  // Write Multiple Coils (15),
+                                         // Write Multiple Registers (16)
+                    union {
+                        uint8_t coil_values[TF_MODBUS_TCP_MAX_WRITE_COIL_BYTE_COUNT];     // Write Multiple Coils (15),
+                        uint16_t register_values[TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT]; // Write Multiple Registers (16)
+                    };
+                };
+            };
+            struct [[gnu::packed]] {
+                uint16_t and_mask;       // Mask Write Register (22)
+                uint16_t or_mask;        // Mask Write Register (22)
+                uint8_t sentinel;        // Not part of the actual protocol, there for offsetof() calculations
+            };
         };
     };
     uint8_t bytes[TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH];
@@ -174,8 +187,10 @@ union TFModbusTCPResponsePayload
                                          // Write Single Register (6)
                     uint16_t data_count; // Write Multiple Coils (15),
                                          // Write Multiple Registers (16)
+                    uint16_t and_mask;   // Mask Write Register (22)
                 };
-                uint8_t write_sentinel;  // Not part of the actual protocol, there for offsetof() calculations
+                uint16_t or_mask;        // Mask Write Register (22)
+                uint8_t sentinel;        // Not part of the actual protocol, there for offsetof() calculations
             };
         };
     };

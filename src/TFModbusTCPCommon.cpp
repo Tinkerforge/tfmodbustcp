@@ -32,9 +32,12 @@ static_assert(offsetof(TFModbusTCPRequestPayload, function_code)   == 0, "TFModb
 static_assert(offsetof(TFModbusTCPRequestPayload, start_address)   == 1, "TFModbusTCPRequestPayload::start_address has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, data_count)      == 3, "TFModbusTCPRequestPayload::data_count has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, data_value)      == 3, "TFModbusTCPRequestPayload::data_value has unexpected offset");
+static_assert(offsetof(TFModbusTCPRequestPayload, and_mask)        == 3, "TFModbusTCPRequestPayload::and_mask has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, byte_count)      == 5, "TFModbusTCPRequestPayload::byte_count has unexpected offset");
+static_assert(offsetof(TFModbusTCPRequestPayload, or_mask)         == 5, "TFModbusTCPRequestPayload::or_mask has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, coil_values)     == 6, "TFModbusTCPRequestPayload::coil_values has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, register_values) == 6, "TFModbusTCPRequestPayload::register_values has unexpected offset");
+static_assert(offsetof(TFModbusTCPRequestPayload, sentinel)        == 7, "TFModbusTCPRequestPayload::sentinel has unexpected offset");
 static_assert(offsetof(TFModbusTCPRequestPayload, bytes)           == 0, "TFModbusTCPRequestPayload::header has unexpected offset");
 
 static_assert(sizeof(TFModbusTCPRequest) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_REQUEST_PAYLOAD_LENGTH, "TFModbusTCPRequest has unexpected size");
@@ -50,6 +53,9 @@ static_assert(offsetof(TFModbusTCPResponsePayload, register_values) == 2, "TFMod
 static_assert(offsetof(TFModbusTCPResponsePayload, start_address)   == 1, "TFModbusTCPResponsePayload::start_address has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, data_value)      == 3, "TFModbusTCPResponsePayload::data_value has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, data_count)      == 3, "TFModbusTCPResponsePayload::data_count has unexpected offset");
+static_assert(offsetof(TFModbusTCPResponsePayload, and_mask)        == 3, "TFModbusTCPResponsePayload::and_mask has unexpected offset");
+static_assert(offsetof(TFModbusTCPResponsePayload, or_mask)         == 5, "TFModbusTCPResponsePayload::or_mask has unexpected offset");
+static_assert(offsetof(TFModbusTCPResponsePayload, sentinel)        == 7, "TFModbusTCPResponsePayload::sentinel has unexpected offset");
 static_assert(offsetof(TFModbusTCPResponsePayload, bytes)           == 0, "TFModbusTCPResponsePayload::bytes has unexpected offset");
 
 static_assert(sizeof(TFModbusTCPResponse) == TF_MODBUS_TCP_HEADER_LENGTH + TF_MODBUS_TCP_MAX_RESPONSE_PAYLOAD_LENGTH, "TFModbusTCPResponse has unexpected size");
@@ -95,6 +101,9 @@ const char *get_tf_modbus_tcp_function_code_name(TFModbusTCPFunctionCode functio
 
     case TFModbusTCPFunctionCode::WriteMultipleRegisters:
         return "WriteMultipleRegisters";
+
+    case TFModbusTCPFunctionCode::MaskWriteRegister:
+        return "MaskWriteRegister";
     }
 
     return "<Unknown>";

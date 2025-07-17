@@ -148,6 +148,12 @@ int main()
 
             return TFModbusTCPExceptionCode::Success;
         }
+        else if (function_code == TFModbusTCPFunctionCode::MaskWriteRegister) {
+            TFNetworkUtil::logfln("mask_write_register unit_id=%u start_address=%u and_mask=%u or_mask=%u", unit_id, start_address,
+                                  static_cast<uint16_t *>(data_values)[0], static_cast<uint16_t *>(data_values)[1]);
+
+            return TFModbusTCPExceptionCode::Success;
+        }
 
         return TFModbusTCPExceptionCode::ForceTimeout;
     });

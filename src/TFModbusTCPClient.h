@@ -60,6 +60,8 @@ enum class TFModbusTCPClientTransactionResult
     ResponseStartAddressMismatch,
     ResponseDataValueMismatch,
     ResponseDataCountMismatch,
+    ResponseAndMaskMismatch,
+    ResponseOrMaskMismatch,
     ResponseShorterThanExpected,
 };
 

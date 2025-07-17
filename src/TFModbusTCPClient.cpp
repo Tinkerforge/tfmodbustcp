@@ -113,6 +113,12 @@ const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTr
     case TFModbusTCPClientTransactionResult::ResponseDataCountMismatch:
         return "ResponseDataCountMismatch";
 
+    case TFModbusTCPClientTransactionResult::ResponseAndMaskMismatch:
+        return "ResponseAndMaskMismatch";
+
+    case TFModbusTCPClientTransactionResult::ResponseOrMaskMismatch:
+        return "ResponseOrMaskMismatch";
+
     case TFModbusTCPClientTransactionResult::ResponseShorterThanExpected:
         return "ResponseShorterThanExpected";
     }
@@ -202,6 +208,14 @@ void TFModbusTCPClient::transact(uint8_t unit_id,
 
     case TFModbusTCPFunctionCode::WriteMultipleRegisters:
         if (data_count < TF_MODBUS_TCP_MIN_WRITE_REGISTER_COUNT || data_count > TF_MODBUS_TCP_MAX_WRITE_REGISTER_COUNT) {
+            callback(TFModbusTCPClientTransactionResult::InvalidArgument, "Data count is out-of-range");
+            return;
+        }
+
+        break;
+
+    case TFModbusTCPFunctionCode::MaskWriteRegister:
+        if (data_count != 2) {
             callback(TFModbusTCPClientTransactionResult::InvalidArgument, "Data count is out-of-range");
             return;
         }
@@ -330,6 +344,20 @@ void TFModbusTCPClient::tick_hook()
             else { // TFModbusTCPByteOrder::Network
                 memcpy(request.payload.register_values, pending_transaction->buffer, request.payload.byte_count);
             }
+
+            break;
+
+        case TFModbusTCPFunctionCode::MaskWriteRegister:
+            if (register_byte_order == TFModbusTCPByteOrder::Host) {
+                request.payload.and_mask = htons(static_cast<uint16_t *>(pending_transaction->buffer)[0]);
+                request.payload.or_mask  = htons(static_cast<uint16_t *>(pending_transaction->buffer)[1]);
+            }
+            else { // TFModbusTCPByteOrder::Network
+                request.payload.and_mask = static_cast<uint16_t *>(pending_transaction->buffer)[0];
+                request.payload.or_mask  = static_cast<uint16_t *>(pending_transaction->buffer)[1];
+            }
+
+            payload_length = offsetof(TFModbusTCPRequestPayload, sentinel);
 
             break;
 
@@ -504,6 +532,10 @@ bool TFModbusTCPClient::receive_hook()
     bool check_data_value       = false;
     uint16_t expected_data_value; // as TFModbusTCPByteOrder::Host
     bool check_data_count       = false;
+    bool check_and_mask         = false;
+    uint16_t expected_and_mask;   // as TFModbusTCPByteOrder::Host
+    bool check_or_mask          = false;
+    uint16_t expected_or_mask;    // as TFModbusTCPByteOrder::Host
 
     switch (static_cast<TFModbusTCPFunctionCode>(pending_response.payload.function_code)) {
     case TFModbusTCPFunctionCode::ReadCoils:
@@ -521,14 +553,14 @@ bool TFModbusTCPClient::receive_hook()
         break;
 
     case TFModbusTCPFunctionCode::WriteSingleCoil:
-        expected_payload_length = offsetof(TFModbusTCPResponsePayload, write_sentinel);
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, or_mask);
         check_start_address     = true;
         check_data_value        = true;
         expected_data_value     = static_cast<uint8_t *>(pending_transaction->buffer)[0] != 0 ? 0xFF00 : 0x0000;
         break;
 
     case TFModbusTCPFunctionCode::WriteSingleRegister:
-        expected_payload_length = offsetof(TFModbusTCPResponsePayload, write_sentinel);
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, or_mask);
         check_start_address     = true;
         check_data_value        = true;
 
@@ -543,9 +575,26 @@ bool TFModbusTCPClient::receive_hook()
 
     case TFModbusTCPFunctionCode::WriteMultipleCoils:
     case TFModbusTCPFunctionCode::WriteMultipleRegisters:
-        expected_payload_length = offsetof(TFModbusTCPResponsePayload, write_sentinel);
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, or_mask);
         check_start_address     = true;
         check_data_count        = true;
+        break;
+
+    case TFModbusTCPFunctionCode::MaskWriteRegister:
+        expected_payload_length = offsetof(TFModbusTCPResponsePayload, sentinel);
+        check_start_address     = true;
+        check_and_mask          = true;
+        check_or_mask           = true;
+
+        if (register_byte_order == TFModbusTCPByteOrder::Host) {
+            expected_and_mask = static_cast<uint16_t *>(pending_transaction->buffer)[0];
+            expected_or_mask  = static_cast<uint16_t *>(pending_transaction->buffer)[1];
+        }
+        else { // TFModbusTCPByteOrder::Network
+            expected_and_mask = ntohs(static_cast<uint16_t *>(pending_transaction->buffer)[0]);
+            expected_or_mask  = ntohs(static_cast<uint16_t *>(pending_transaction->buffer)[1]);
+        }
+
         break;
 
     default:
@@ -641,6 +690,33 @@ bool TFModbusTCPClient::receive_hook()
             snprintf(error_message, sizeof(error_message), "Actual data count is %u, expected is %u", actual_data_count, pending_transaction->data_count);
             reset_pending_response();
             finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseDataCountMismatch, error_message);
+            return true;
+        }
+    }
+
+    if (check_and_mask) {
+        uint16_t actual_and_mask = ntohs(pending_response.payload.and_mask);
+
+        if (actual_and_mask != expected_and_mask) {
+            debugfln("receive_hook() AND mask mismatch (pending_response.payload.and_mask=%u expected_and_mask=%u)",
+                     actual_and_mask, expected_and_mask);
+
+            snprintf(error_message, sizeof(error_message), "Actual AND mask is %u, expected is %u", actual_and_mask, expected_and_mask);
+            reset_pending_response();
+            finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseAndMaskMismatch, error_message);
+            return true;
+        }
+    }
+    if (check_or_mask) {
+        uint16_t actual_or_mask  = ntohs(pending_response.payload.or_mask);
+
+        if (actual_or_mask != expected_or_mask) {
+            debugfln("receive_hook() OR mask mismatch (pending_response.payload.or_mask=%u expected_or_mask=%u)",
+                     actual_or_mask, expected_or_mask);
+
+            snprintf(error_message, sizeof(error_message), "Actual OR mask is %u, expected is %u", actual_or_mask, expected_or_mask);
+            reset_pending_response();
+            finish_pending_transaction(TFModbusTCPClientTransactionResult::ResponseOrMaskMismatch, error_message);
             return true;
         }
     }

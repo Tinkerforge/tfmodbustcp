@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <arpa/inet.h>
+#include <lwip/sockets.h>
 
 const char *TFNetworkUtil::printf_safe(const char *string)
 {
@@ -64,5 +64,5 @@ char *TFNetworkUtil::ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t addr
     struct in_addr addr;
     addr.s_addr = address;
 
-    return (char *)inet_ntop(AF_INET, &addr, buffer, buffer_length);
+    return const_cast<char *>(inet_ntop(AF_INET, &addr, buffer, buffer_length));
 }

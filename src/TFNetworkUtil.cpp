@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <arpa/inet.h>
 
 const char *TFNetworkUtil::printf_safe(const char *string)
 {
@@ -60,9 +61,8 @@ char *TFNetworkUtil::ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t addr
         return buffer;
     }
 
-    if (snprintf(buffer, buffer_length, "%u.%u.%u.%u", address & 0xff, (address >> 8) & 0xff, (address >> 16) & 0xff, (address >> 24) & 0xff) < 0) {
-        buffer[0] = '\0';
-    }
+    struct in_addr addr;
+    addr.s_addr = address;
 
-    return buffer;
+    return (char *)inet_ntop(AF_INET, &addr, buffer, buffer_length);
 }

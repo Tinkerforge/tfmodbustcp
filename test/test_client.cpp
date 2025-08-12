@@ -24,6 +24,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/random.h>
 #include <Arduino.h>
 #include "../src/TFNetworkUtil.h"
 #include "../src/TFModbusTCPClient.h"
@@ -56,6 +57,26 @@ void sigint_handler(int dummy)
 
 int main()
 {
+    TFNetworkUtil::vlogfln =
+    [](const char *format, va_list args) {
+        printf("%lu | ", (int64_t)now_us());
+        vprintf(format, args);
+        puts("");
+    };
+
+    TFNetworkUtil::get_random_uint16 =
+    []() {
+        uint16_t r;
+
+        if (getrandom(&r, sizeof(r), 0) != sizeof(r)) {
+            abort();
+        }
+
+        return r;
+    };
+
+    signal(SIGINT, sigint_handler);
+
     uint16_t read_register_buffer[2] = {0, 0};
     uint16_t write_register_buffer;
     uint8_t read_coil_buffer[2] = {0, 0};
@@ -65,15 +86,6 @@ int main()
     TFModbusTCPClient client(TFModbusTCPByteOrder::Host);
     micros_t next_read_time = -1_s;
     micros_t next_reconnect;
-
-    signal(SIGINT, sigint_handler);
-
-    TFNetworkUtil::vlogfln =
-    [](const char *format, va_list args) {
-        printf("%lu | ", (int64_t)now_us());
-        vprintf(format, args);
-        puts("");
-    };
 
     TFNetworkUtil::resolve =
     [&resolve_host, &resolve_callback](const char *host, std::function<void(uint32_t host_address, int error_number)> &&callback) {

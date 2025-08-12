@@ -35,6 +35,7 @@
 typedef std::function<void(const char *fmt, va_list args)> TFNetworkUtilVLogFLnFunction;
 typedef std::function<void(uint32_t address, int error_number)> TFNetworkUtilResolveResultCallback;
 typedef std::function<void(const char *host, TFNetworkUtilResolveResultCallback &&callback)> TFNetworkUtilResolveFunction;
+typedef std::function<uint16_t()> TFNetworkUtilGetRandomUint16Function;
 
 namespace TFNetworkUtil
 {
@@ -44,6 +45,8 @@ namespace TFNetworkUtil
     [[gnu::format(__printf__, 1, 2)]] void logfln(const char *fmt, ...);
 
     extern TFNetworkUtilResolveFunction resolve;
+
+    extern TFNetworkUtilGetRandomUint16Function get_random_uint16;
 
     class NonReentrantScope
     {

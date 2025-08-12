@@ -24,6 +24,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/random.h>
 #include <Arduino.h>
 #include "../src/TFNetworkUtil.h"
 #include "../src/TFModbusTCPClient.h"
@@ -56,15 +57,6 @@ void sigint_handler(int dummy)
 
 int main()
 {
-    uint16_t buffer1[2] = {0, 0};
-    uint16_t buffer2[2] = {0, 0};
-    TFModbusTCPClientPool pool(TFModbusTCPByteOrder::Host);
-    TFGenericTCPSharedClient *client_ptr1 = nullptr;
-    TFGenericTCPSharedClient *client_ptr2 = nullptr;
-    micros_t next_reconnect;
-
-    signal(SIGINT, sigint_handler);
-
     TFNetworkUtil::vlogfln =
     [](const char *format, va_list args) {
         printf("%lu | ", static_cast<int64_t>(now_us()));
@@ -83,6 +75,26 @@ int main()
             callback(((struct in_addr *)result->h_addr)->s_addr, 0);
         }
     };
+
+    TFNetworkUtil::get_random_uint16 =
+    []() {
+        uint16_t r;
+
+        if (getrandom(&r, sizeof(r), 0) != sizeof(r)) {
+            abort();
+        }
+
+        return r;
+    };
+
+    signal(SIGINT, sigint_handler);
+
+    uint16_t buffer1[2] = {0, 0};
+    uint16_t buffer2[2] = {0, 0};
+    TFModbusTCPClientPool pool(TFModbusTCPByteOrder::Host);
+    TFGenericTCPSharedClient *client_ptr1 = nullptr;
+    TFGenericTCPSharedClient *client_ptr2 = nullptr;
+    micros_t next_reconnect;
 
     TFNetworkUtil::logfln("acquire1...");
     pool.acquire("localhost", 502,

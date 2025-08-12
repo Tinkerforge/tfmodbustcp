@@ -19,10 +19,11 @@
 
 #pragma once
 
+#include <sys/types.h>
+
 #include "TFGenericTCPClient.h"
 #include "TFModbusTCPCommon.h"
-
-#include <sys/types.h>
+#include "TFNetworkUtil.h"
 
 // configuration
 #ifndef TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT
@@ -84,7 +85,7 @@ struct TFModbusTCPClientTransaction
 class TFModbusTCPClient final : public TFGenericTCPClient
 {
 public:
-    TFModbusTCPClient(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_) {}
+    TFModbusTCPClient(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_), next_transaction_id(TFNetworkUtil::get_random_uint16()) {}
 
     void transact(uint8_t unit_id,
                   TFModbusTCPFunctionCode function_code,
@@ -107,7 +108,7 @@ private:
     void reset_pending_response();
 
     TFModbusTCPByteOrder register_byte_order;
-    uint16_t next_transaction_id                             = 0;
+    uint16_t next_transaction_id;
     TFModbusTCPClientTransaction *pending_transaction        = nullptr;
     uint16_t pending_transaction_id                          = 0;
     micros_t pending_transaction_deadline                    = 0_s;

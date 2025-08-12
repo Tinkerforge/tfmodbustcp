@@ -53,16 +53,16 @@ void sigint_handler(int dummy)
 
 int main()
 {
-    TFModbusTCPServer server(TFModbusTCPByteOrder::Host);
-
-    signal(SIGINT, sigint_handler);
-
     TFNetworkUtil::vlogfln =
     [](const char *format, va_list args) {
         printf("%lu | ", static_cast<int64_t>(now_us()));
         vprintf(format, args);
         puts("");
     };
+
+    signal(SIGINT, sigint_handler);
+
+    TFModbusTCPServer server(TFModbusTCPByteOrder::Host);
 
     server.start(0, 502,
     [](uint32_t peer_address, uint16_t port) {

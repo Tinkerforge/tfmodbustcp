@@ -66,16 +66,16 @@ uint32_t f32_to_u32(float value)
 
 int main()
 {
-    TFModbusTCPServer server(TFModbusTCPByteOrder::Host);
-
-    signal(SIGINT, sigint_handler);
-
     TFNetworkUtil::vlogfln =
     [](const char *format, va_list args) {
         printf("%lu | ", static_cast<int64_t>(now_us()));
         vprintf(format, args);
         puts("");
     };
+
+    signal(SIGINT, sigint_handler);
+
+    TFModbusTCPServer server(TFModbusTCPByteOrder::Host);
 
 #define R(a, b) (((a) << 8) | (b))
 #define F32(v) (uint16_t)(f32_to_u32(v) >> 16), (uint16_t)(f32_to_u32(v) & 0xFFFF)

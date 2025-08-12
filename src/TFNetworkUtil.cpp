@@ -55,6 +55,13 @@ static void resolve_dummy(const char *host, TFNetworkUtilResolveResultCallback &
 
 TFNetworkUtilResolveFunction TFNetworkUtil::resolve = resolve_dummy;
 
+static uint16_t get_random_uint16_dummy()
+{
+    abort();
+}
+
+TFNetworkUtilGetRandomUint16Function TFNetworkUtil::get_random_uint16 = get_random_uint16_dummy;
+
 char *TFNetworkUtil::ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t address)
 {
     if (buffer_length < 1) {

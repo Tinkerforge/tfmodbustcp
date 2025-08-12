@@ -387,7 +387,7 @@ bool TFModbusTCPClient::receive_hook()
     size_t pending_response_header_missing = sizeof(TFModbusTCPHeader) - pending_response_header_used;
 
     if (pending_response_header_missing > 0) {
-        ssize_t result = recv(socket_fd, pending_response.header.bytes + pending_response_header_used, pending_response_header_missing, 0);
+        ssize_t result = recv(pending_response.header.bytes + pending_response_header_used, pending_response_header_missing);
 
         if (result < 0) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -732,7 +732,7 @@ ssize_t TFModbusTCPClient::receive_response_payload(size_t length)
         return 0;
     }
 
-    ssize_t result = recv(socket_fd, pending_response.payload.bytes + pending_response_payload_used, length, 0);
+    ssize_t result = recv(pending_response.payload.bytes + pending_response_payload_used, length);
 
     if (result < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {

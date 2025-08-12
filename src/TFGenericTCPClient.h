@@ -91,6 +91,7 @@ enum class TFGenericTCPClientConnectionStatus
 
 const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientConnectionStatus status);
 
+typedef std::function<void(const void *buffer, size_t length)> TFGenericTCPClientTransferCallback;
 typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number)> TFGenericTCPClientConnectCallback;
 typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number)> TFGenericTCPClientDisconnectCallback;
 
@@ -103,6 +104,8 @@ public:
     TFGenericTCPClient(TFGenericTCPClient const &other) = delete;
     TFGenericTCPClient &operator=(TFGenericTCPClient const &other) = delete;
 
+    void set_send_callback(TFGenericTCPClientTransferCallback &&callback);
+    void set_recv_callback(TFGenericTCPClientTransferCallback &&callback);
     void connect(const char *host, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback,
                  TFGenericTCPClientDisconnectCallback &&disconnect_callback); // non-reentrant
     TFGenericTCPClientDisconnectResult disconnect(); // non-reentrant
@@ -118,9 +121,12 @@ protected:
 
     void close();
     bool send(const uint8_t *buffer, size_t length);
+    ssize_t recv(uint8_t *buffer, size_t length);
     void abort_connect(TFGenericTCPClientConnectResult result, int error_number);
     void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 
+    TFGenericTCPClientTransferCallback send_callback;
+    TFGenericTCPClientTransferCallback recv_callback;
     bool non_reentrant            = false;
     char *host                    = nullptr;
     uint16_t port                 = 0;

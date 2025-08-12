@@ -144,6 +144,16 @@ const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientC
     return "<Unknown>";
 }
 
+void TFGenericTCPClient::set_send_callback(TFGenericTCPClientTransferCallback &&callback)
+{
+    send_callback = std::move(callback);
+}
+
+void TFGenericTCPClient::set_recv_callback(TFGenericTCPClientTransferCallback &&callback)
+{
+    recv_callback = std::move(callback);
+}
+
 // non-reentrant
 void TFGenericTCPClient::connect(const char *host, uint16_t port,
                                  TFGenericTCPClientConnectCallback &&connect_callback,
@@ -413,6 +423,16 @@ void TFGenericTCPClient::close()
 
 bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
 {
+    if (socket_fd < 0) {
+        errno = EBADF;
+
+        return false;
+    }
+
+    if (length > 0 && send_callback) {
+        send_callback(buffer, length);
+    }
+
     size_t buffer_send = 0;
     size_t tries_remaining = TF_GENERIC_TCP_CLIENT_MAX_SEND_TRIES;
 
@@ -433,6 +453,23 @@ bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
     }
 
     return true;
+}
+
+ssize_t TFGenericTCPClient::recv(uint8_t *buffer, size_t length)
+{
+    if (socket_fd < 0) {
+        errno = EBADF;
+
+        return -1;
+    }
+
+    ssize_t result = ::recv(socket_fd, buffer, length, 0);
+
+    if (result > 0 && recv_callback) {
+        recv_callback(buffer, result);
+    }
+
+    return result;
 }
 
 void TFGenericTCPClient::abort_connect(TFGenericTCPClientConnectResult result, int error_number)

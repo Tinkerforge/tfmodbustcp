@@ -144,14 +144,71 @@ const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientC
     return "<Unknown>";
 }
 
-void TFGenericTCPClient::set_send_callback(TFGenericTCPClientTransferCallback &&callback)
+const char *get_tf_generic_tcp_client_transfer_direction_name(TFGenericTCPClientTransferDirection direction)
 {
-    send_callback = std::move(callback);
+    switch (direction) {
+    case TFGenericTCPClientTransferDirection::Send:
+        return "Send";
+
+    case TFGenericTCPClientTransferDirection::Receive:
+        return "Receive";
+    }
+
+    return "<Unknown>";
 }
 
-void TFGenericTCPClient::set_recv_callback(TFGenericTCPClientTransferCallback &&callback)
+struct TFGenericTCPClientTransferHook
 {
-    recv_callback = std::move(callback);
+    TFGenericTCPClientTransferCallback callback;
+    TFGenericTCPClientTransferHook *next;
+};
+
+static bool remove_transfer_hook(TFGenericTCPClientTransferHook **head_ptr, TFGenericTCPClientTransferHook *hook)
+{
+    TFGenericTCPClientTransferHook **prev_next_ptr = head_ptr;
+
+    while (*prev_next_ptr != nullptr) {
+        if (*prev_next_ptr == hook) {
+            *prev_next_ptr = (*prev_next_ptr)->next;
+            delete hook;
+
+            return true;
+        }
+
+        prev_next_ptr = &(*prev_next_ptr)->next;
+    }
+
+    return false;
+}
+
+TFGenericTCPClientTransferHook *TFGenericTCPClient::add_transfer_hook(TFGenericTCPClientTransferCallback &&callback)
+{
+    TFGenericTCPClientTransferHook *hook = new TFGenericTCPClientTransferHook;
+
+    hook->callback = std::move(callback);
+    hook->next     = transfer_hook_head;
+
+    transfer_hook_head = hook;
+
+    return hook;
+}
+
+bool TFGenericTCPClient::remove_transfer_hook(TFGenericTCPClientTransferHook *hook)
+{
+    TFGenericTCPClientTransferHook **prev_next_ptr = &transfer_hook_head;
+
+    while (*prev_next_ptr != nullptr) {
+        if (*prev_next_ptr == hook) {
+            *prev_next_ptr = (*prev_next_ptr)->next;
+            delete hook;
+
+            return true;
+        }
+
+        prev_next_ptr = &(*prev_next_ptr)->next;
+    }
+
+    return false;
 }
 
 // non-reentrant
@@ -423,14 +480,16 @@ void TFGenericTCPClient::close()
 
 bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
 {
-    if (socket_fd < 0) {
-        errno = EBADF;
+    if (length > 0 && transfer_hook_head != nullptr) {
+        TFGenericTCPClientTransferHook *hook = transfer_hook_head;
 
-        return false;
-    }
+        while (hook != nullptr) {
+            TFGenericTCPClientTransferHook *next = hook->next;
 
-    if (length > 0 && send_callback) {
-        send_callback(buffer, length);
+            hook->callback(TFGenericTCPClientTransferDirection::Send, buffer, length);
+
+            hook = next;
+        }
     }
 
     size_t buffer_send = 0;
@@ -457,16 +516,18 @@ bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
 
 ssize_t TFGenericTCPClient::recv(uint8_t *buffer, size_t length)
 {
-    if (socket_fd < 0) {
-        errno = EBADF;
-
-        return -1;
-    }
-
     ssize_t result = ::recv(socket_fd, buffer, length, 0);
 
-    if (result > 0 && recv_callback) {
-        recv_callback(buffer, result);
+    if (result > 0 && transfer_hook_head != nullptr) {
+        TFGenericTCPClientTransferHook *hook = transfer_hook_head;
+
+        while (hook != nullptr) {
+            TFGenericTCPClientTransferHook *next = hook->next;
+
+            hook->callback(TFGenericTCPClientTransferDirection::Receive, buffer, length);
+
+            hook = next;
+        }
     }
 
     return result;

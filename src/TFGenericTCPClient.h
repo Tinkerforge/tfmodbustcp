@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <functional>
 #include <TFTools/Micros.h>
 
@@ -91,9 +92,19 @@ enum class TFGenericTCPClientConnectionStatus
 
 const char *get_tf_generic_tcp_client_connection_status_name(TFGenericTCPClientConnectionStatus status);
 
-typedef std::function<void(const void *buffer, size_t length)> TFGenericTCPClientTransferCallback;
+enum class TFGenericTCPClientTransferDirection
+{
+    Send,
+    Receive,
+};
+
+const char *get_tf_generic_tcp_client_transfer_direction_name(TFGenericTCPClientTransferDirection direction);
+
+typedef std::function<void(TFGenericTCPClientTransferDirection direction, const uint8_t *buffer, size_t length)> TFGenericTCPClientTransferCallback;
 typedef std::function<void(TFGenericTCPClientConnectResult result, int error_number)> TFGenericTCPClientConnectCallback;
 typedef std::function<void(TFGenericTCPClientDisconnectReason reason, int error_number)> TFGenericTCPClientDisconnectCallback;
+
+struct TFGenericTCPClientTransferHook;
 
 class TFGenericTCPClient
 {
@@ -104,8 +115,8 @@ public:
     TFGenericTCPClient(TFGenericTCPClient const &other) = delete;
     TFGenericTCPClient &operator=(TFGenericTCPClient const &other) = delete;
 
-    void set_send_callback(TFGenericTCPClientTransferCallback &&callback);
-    void set_recv_callback(TFGenericTCPClientTransferCallback &&callback);
+    TFGenericTCPClientTransferHook *add_transfer_hook(TFGenericTCPClientTransferCallback &&callback);
+    bool remove_transfer_hook(TFGenericTCPClientTransferHook *hook);
     void connect(const char *host, uint16_t port, TFGenericTCPClientConnectCallback &&connect_callback,
                  TFGenericTCPClientDisconnectCallback &&disconnect_callback); // non-reentrant
     TFGenericTCPClientDisconnectResult disconnect(); // non-reentrant
@@ -125,8 +136,7 @@ protected:
     void abort_connect(TFGenericTCPClientConnectResult result, int error_number);
     void disconnect(TFGenericTCPClientDisconnectReason reason, int error_number);
 
-    TFGenericTCPClientTransferCallback send_callback;
-    TFGenericTCPClientTransferCallback recv_callback;
+    TFGenericTCPClientTransferHook *transfer_hook_head = nullptr;
     bool non_reentrant            = false;
     char *host                    = nullptr;
     uint16_t port                 = 0;
@@ -150,6 +160,8 @@ public:
     TFGenericTCPSharedClient(TFGenericTCPSharedClient const &other) = delete;
     TFGenericTCPSharedClient &operator=(TFGenericTCPSharedClient const &other) = delete;
 
+    TFGenericTCPClientTransferHook *add_transfer_hook(TFGenericTCPClientTransferCallback &&callback) { return client->add_transfer_hook(std::move(callback)); }
+    bool remove_transfer_hook(TFGenericTCPClientTransferHook *hook) { return client->remove_transfer_hook(hook); }
     const char *get_host() const { return client->get_host(); }
     uint16_t get_port() const { return client->get_port(); }
     TFGenericTCPClientConnectionStatus get_connection_status() const { return client->get_connection_status(); }

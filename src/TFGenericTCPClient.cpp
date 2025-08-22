@@ -163,24 +163,6 @@ struct TFGenericTCPClientTransferHook
     TFGenericTCPClientTransferHook *next;
 };
 
-static bool remove_transfer_hook(TFGenericTCPClientTransferHook **head_ptr, TFGenericTCPClientTransferHook *hook)
-{
-    TFGenericTCPClientTransferHook **prev_next_ptr = head_ptr;
-
-    while (*prev_next_ptr != nullptr) {
-        if (*prev_next_ptr == hook) {
-            *prev_next_ptr = (*prev_next_ptr)->next;
-            delete hook;
-
-            return true;
-        }
-
-        prev_next_ptr = &(*prev_next_ptr)->next;
-    }
-
-    return false;
-}
-
 TFGenericTCPClientTransferHook *TFGenericTCPClient::add_transfer_hook(TFGenericTCPClientTransferCallback &&callback)
 {
     TFGenericTCPClientTransferHook *hook = new TFGenericTCPClientTransferHook;

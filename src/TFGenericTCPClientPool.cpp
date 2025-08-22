@@ -136,28 +136,21 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
         slots[slot_index] = new TFGenericTCPClientPoolSlot;
     }
 
-    uint32_t slot_id = next_slot_id++;
-
-    if (next_slot_id == 0) {
-        next_slot_id = 1;
-    }
-
     TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
     if (slot->delete_pending) {
-        debugfln("acquire(host=%s port=%u) reviving slot (slot_index=%zu slot=%p old_slot_id=%u new_slot_id=%u client=%p)",
-                 host, port, slot_index, static_cast<void *>(slot), slot->id, slot_id, static_cast<void *>(slot->client));
+        debugfln("acquire(host=%s port=%u) reviving slot (slot_index=%zu slot=%p client=%p)",
+                 host, port, slot_index, static_cast<void *>(slot), static_cast<void *>(slot->client));
     }
 
-    slot->id = slot_id;
     slot->delete_pending = false;
 
     if (slot->client == nullptr) {
         slot->client = create_client();
     }
 
-    debugfln("acquire(host=%s port=%u) connecting slot (slot_index=%zu slot=%p slot_id=%u client=%p)",
-             host, port, slot_index, static_cast<void *>(slot), slot_id, static_cast<void *>(slot->client));
+    debugfln("acquire(host=%s port=%u) connecting slot (slot_index=%zu slot=%p client=%p)",
+             host, port, slot_index, static_cast<void *>(slot), static_cast<void *>(slot->client));
 
     TFGenericTCPClientPoolShare *share = new TFGenericTCPClientPoolShare;
     share->shared_client = create_shared_client(slot->client);
@@ -167,19 +160,12 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
     ++slot->share_count;
 
     slot->client->connect(host, port,
-    [this, slot_index, slot_id](TFGenericTCPClientConnectResult result, int error_number) {
+    [this, slot_index](TFGenericTCPClientConnectResult result, int error_number) {
         TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
-        if (slot == nullptr || slot->id != slot_id) {
-            debugfln("acquire(...) connected... slot got freed or reused (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
-                     get_tf_generic_tcp_client_connect_result_name(result), error_number,
-                     slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
-            return;
-        }
-
-        debugfln("acquire(...) connected (result=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
+        debugfln("acquire(...) connected (result=%s error_number=%d slot_index=%zu slot=%p)",
                  get_tf_generic_tcp_client_connect_result_name(result), error_number,
-                 slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
+                 slot_index, static_cast<void *>(slot));
 
         TFGenericTCPClientPoolShareLevel share_level = TFGenericTCPClientPoolShareLevel::Primary;
 
@@ -211,23 +197,16 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
             }
         }
     },
-    [this, slot_index, slot_id](TFGenericTCPClientDisconnectReason reason, int error_number) {
+    [this, slot_index](TFGenericTCPClientDisconnectReason reason, int error_number) {
         TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
-        if (slot != nullptr && slot->delete_pending) {
+        if (slot->delete_pending) {
             return;
         }
 
-        if (slot == nullptr || slot->id != slot_id) {
-            debugfln("acquire(...) disconnected... slot got freed or reused (reason=%s error_number=%d slot_index=%zu slot=%p slot->id=%u slot_id=%u)",
-                     get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
-                     slot_index, static_cast<void *>(slot), slot != nullptr ? slot->id : 0, slot_id);
-            return;
-        }
-
-        debugfln("acquire(...) disconnected (reason=%s error_number=%d slot_index=%zu slot=%p slot->id=%u)",
+        debugfln("acquire(...) disconnected (reason=%s error_number=%d slot_index=%zu slot=%p)",
                  get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
-                 slot_index, static_cast<void *>(slot), slot->id);
+                 slot_index, static_cast<void *>(slot));
 
         for (size_t k = 0; k < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++k) {
             TFGenericTCPClientPoolShare *share = slot->shares[k];

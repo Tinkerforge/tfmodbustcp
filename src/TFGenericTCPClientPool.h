@@ -53,7 +53,6 @@ struct TFGenericTCPClientPoolSlot
 {
     TFGenericTCPClientPoolSlot() { memset(shares, 0, sizeof(shares)); }
 
-    uint32_t id = 0;
     bool delete_pending = false;
     TFGenericTCPClient *client = nullptr;
     TFGenericTCPClientPoolShare *shares[TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT];
@@ -82,7 +81,6 @@ protected:
 private:
     void release(size_t slot_index, size_t share_index, TFGenericTCPClientDisconnectReason reason, int error_number, bool disconnect);
 
-    bool non_reentrant    = false;
-    uint32_t next_slot_id = 1;
+    bool non_reentrant = false;
     TFGenericTCPClientPoolSlot *slots[TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT];
 };

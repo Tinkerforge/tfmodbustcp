@@ -68,7 +68,7 @@ int main()
 {
     TFNetworkUtil::vlogfln =
     [](const char *format, va_list args) {
-        printf("%lu | ", static_cast<int64_t>(now_us()));
+        printf("%li | ", static_cast<int64_t>(now_us()));
         vprintf(format, args);
         puts("");
     };

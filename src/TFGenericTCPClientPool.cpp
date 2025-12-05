@@ -221,16 +221,16 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 }
 
 // non-reentrant
-void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client)
+void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client, bool force_disconnect /*= false*/)
 {
     if (non_reentrant) {
-        debugfln("release(shared_client=%p) non-reentrant", static_cast<void *>(shared_client));
+        debugfln("release(shared_client=%p force_disconnect=%u) non-reentrant", static_cast<void *>(shared_client), force_disconnect ? 1 : 0);
         return;
     }
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
 
-    debugfln("release(shared_client=%p)", static_cast<void *>(shared_client));
+    debugfln("release(shared_client=%p force_disconnect=%u)", static_cast<void *>(shared_client), force_disconnect ? 1 : 0);
 
     for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT; ++i) {
         TFGenericTCPClientPoolSlot *slot = slots[i];
@@ -247,11 +247,28 @@ void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client)
             }
 
             release(i, k, TFGenericTCPClientDisconnectReason::Requested, -1, true);
+
+            if (force_disconnect) {
+                for (size_t n = 0; n < TF_GENERIC_TCP_CLIENT_POOL_MAX_SHARE_COUNT; ++n) {
+                    if (n == k) {
+                        continue;
+                    }
+
+                    TFGenericTCPClientPoolShare *other_share = slot->shares[n];
+
+                    if (other_share == nullptr) {
+                        continue;
+                    }
+
+                    release(i, n, TFGenericTCPClientDisconnectReason::Requested, -1, true);
+                }
+            }
+
             return;
         }
     }
 
-    debugfln("release(shared_client=%p) shared client not found", static_cast<void *>(shared_client));
+    debugfln("release(shared_client=%p force_disconnect=%u) shared client not found", static_cast<void *>(shared_client), force_disconnect ? 1 : 0);
 }
 
 // non-reentrant

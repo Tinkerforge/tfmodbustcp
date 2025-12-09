@@ -221,11 +221,11 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 }
 
 // non-reentrant
-void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client, bool force_disconnect /*= false*/)
+TFGenericTCPClientDisconnectResult TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client, bool force_disconnect /*= false*/)
 {
     if (non_reentrant) {
         debugfln("release(shared_client=%p force_disconnect=%u) non-reentrant", static_cast<void *>(shared_client), force_disconnect ? 1 : 0);
-        return;
+        return TFGenericTCPClientDisconnectResult::NonReentrant;
     }
 
     TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
@@ -264,11 +264,13 @@ void TFGenericTCPClientPool::release(TFGenericTCPSharedClient *shared_client, bo
                 }
             }
 
-            return;
+            return TFGenericTCPClientDisconnectResult::Disconnected;
         }
     }
 
     debugfln("release(shared_client=%p force_disconnect=%u) shared client not found", static_cast<void *>(shared_client), force_disconnect ? 1 : 0);
+
+    return TFGenericTCPClientDisconnectResult::NotConnected;
 }
 
 // non-reentrant

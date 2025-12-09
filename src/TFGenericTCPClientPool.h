@@ -71,7 +71,7 @@ public:
     void acquire(const char *host, uint16_t port,
                  TFGenericTCPClientPoolConnectCallback &&connect_callback,
                  TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback); // non-reentrant
-    void release(TFGenericTCPSharedClient *shared_client, bool force_disconnect = false); // non-reentrant
+    TFGenericTCPClientDisconnectResult release(TFGenericTCPSharedClient *shared_client, bool force_disconnect = false); // non-reentrant
     void tick(); // non-reentrant
 
 protected:

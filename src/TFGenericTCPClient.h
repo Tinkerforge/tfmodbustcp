@@ -73,6 +73,7 @@ const char *get_tf_generic_tcp_client_disconnect_result_name(TFGenericTCPClientD
 enum class TFGenericTCPClientDisconnectReason
 {
     Requested,
+    Forced,
     SocketSelectFailed,  // errno
     SocketReceiveFailed, // errno
     SocketIoctlFailed,   // errno

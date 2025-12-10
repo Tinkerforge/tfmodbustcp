@@ -106,6 +106,9 @@ const char *get_tf_generic_tcp_client_disconnect_reason_name(TFGenericTCPClientD
     case TFGenericTCPClientDisconnectReason::Requested:
         return "Requested";
 
+    case TFGenericTCPClientDisconnectReason::Forced:
+        return "Forced";
+
     case TFGenericTCPClientDisconnectReason::SocketSelectFailed:
         return "SocketSelectFailed";
 

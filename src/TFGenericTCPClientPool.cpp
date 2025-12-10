@@ -260,7 +260,7 @@ TFGenericTCPClientDisconnectResult TFGenericTCPClientPool::release(TFGenericTCPS
                         continue;
                     }
 
-                    release(i, n, TFGenericTCPClientDisconnectReason::Requested, -1, true);
+                    release(i, n, TFGenericTCPClientDisconnectReason::Forced, -1, true);
                 }
             }
 

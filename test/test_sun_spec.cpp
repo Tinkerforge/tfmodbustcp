@@ -1,4 +1,4 @@
-/* TFModbusTCP
+/* TFNetwork
  * Copyright (C) 2025 Matthias Bolte <matthias@tinkerforge.com>
  *
  * This library is free software; you can redistribute it and/or

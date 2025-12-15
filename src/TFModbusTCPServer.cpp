@@ -856,7 +856,7 @@ bool TFModbusTCPServer::send_response(TFModbusTCPServerClient *client)
     while (tries_remaining > 0 && buffer_send < length) {
         --tries_remaining;
 
-        ssize_t result = send(client->socket_fd, buffer + buffer_send, length - buffer_send, 0);
+        ssize_t result = send(client->socket_fd, buffer + buffer_send, length - buffer_send, MSG_NOSIGNAL);
 
         if (result < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {

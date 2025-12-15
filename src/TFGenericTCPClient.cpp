@@ -483,7 +483,7 @@ bool TFGenericTCPClient::send(const uint8_t *buffer, size_t length)
     while (tries_remaining > 0 && buffer_send < length) {
         --tries_remaining;
 
-        ssize_t result = ::send(socket_fd, buffer + buffer_send, length - buffer_send, 0);
+        ssize_t result = ::send(socket_fd, buffer + buffer_send, length - buffer_send, MSG_NOSIGNAL);
 
         if (result < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {

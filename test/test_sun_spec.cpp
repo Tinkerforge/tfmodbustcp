@@ -24,7 +24,7 @@
 #include <signal.h>
 #include <string.h>
 #include <Arduino.h>
-#include "../src/TFNetworkUtil.h"
+#include "../src/TFNetwork.h"
 #include "../src/TFModbusTCPServer.h"
 
 micros_t now_us()
@@ -47,7 +47,7 @@ void sigint_handler(int dummy)
 {
     (void)dummy;
 
-    TFNetworkUtil::logfln("received SIGINT");
+    TFNetwork::logfln("received SIGINT");
 
     running = false;
 }
@@ -66,7 +66,7 @@ uint32_t f32_to_u32(float value)
 
 int main()
 {
-    TFNetworkUtil::vlogfln =
+    TFNetwork::vlogfln =
     [](const char *format, va_list args) {
         printf("%li | ", static_cast<int64_t>(now_us()));
         vprintf(format, args);
@@ -256,14 +256,14 @@ int main()
 
     server.start(0, 502,
     [](uint32_t peer_address, uint16_t port) {
-        TFNetworkUtil::logfln("connected peer_address=%u port=%u", peer_address, port);
+        TFNetwork::logfln("connected peer_address=%u port=%u", peer_address, port);
     },
     [](uint32_t peer_address, uint16_t port, TFModbusTCPServerDisconnectReason reason, int error_number) {
-        TFNetworkUtil::logfln("disconnected peer_address=%u port=%u reason=%s error_number=%d",
-                              peer_address,
-                              port,
-                              get_tf_modbus_tcp_server_client_disconnect_reason_name(reason),
-                              error_number);
+        TFNetwork::logfln("disconnected peer_address=%u port=%u reason=%s error_number=%d",
+                          peer_address,
+                          port,
+                          get_tf_modbus_tcp_server_client_disconnect_reason_name(reason),
+                          error_number);
     },
     [base_address, register_data, register_count](uint8_t unit_id, TFModbusTCPFunctionCode function_code, uint16_t start_address, uint16_t data_count, void *data_values) {
         if (unit_id != 1) {
@@ -274,7 +274,7 @@ int main()
             return TFModbusTCPExceptionCode::IllegalFunction;
         }
 
-        TFNetworkUtil::logfln("read_holding_registers unit_id=%u start_address=%u data_count=%u data_values=...", unit_id, start_address, data_count);
+        TFNetwork::logfln("read_holding_registers unit_id=%u start_address=%u data_count=%u data_values=...", unit_id, start_address, data_count);
 
         if (start_address < base_address) {
             return TFModbusTCPExceptionCode::IllegalDataAddress;

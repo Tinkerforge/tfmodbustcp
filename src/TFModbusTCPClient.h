@@ -23,7 +23,7 @@
 
 #include "TFGenericTCPClient.h"
 #include "TFModbusTCPCommon.h"
-#include "TFNetworkUtil.h"
+#include "TFNetwork.h"
 
 // configuration
 #ifndef TF_MODBUS_TCP_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT
@@ -85,7 +85,7 @@ struct TFModbusTCPClientTransaction
 class TFModbusTCPClient final : public TFGenericTCPClient
 {
 public:
-    TFModbusTCPClient(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_), next_transaction_id(TFNetworkUtil::get_random_uint16()) {}
+    TFModbusTCPClient(TFModbusTCPByteOrder register_byte_order_) : register_byte_order(register_byte_order_), next_transaction_id(TFNetwork::get_random_uint16()) {}
 
     void transact(uint8_t unit_id,
                   TFModbusTCPFunctionCode function_code,

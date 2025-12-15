@@ -22,9 +22,9 @@
 #include <math.h>
 #include <lwip/sockets.h>
 
-#include "TFNetworkUtil.h"
+#include "TFNetwork.h"
 
-#define debugfln(fmt, ...) tf_network_util_debugfln("TFRCTPowerClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
+#define debugfln(fmt, ...) tf_network_debugfln("TFRCTPowerClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
 
 static uint16_t crc16ccitt(uint8_t *buffer, size_t length)
 {

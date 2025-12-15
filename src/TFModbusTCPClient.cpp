@@ -25,9 +25,9 @@
 #include <sys/types.h>
 #include <lwip/sockets.h>
 
-#include "TFNetworkUtil.h"
+#include "TFNetwork.h"
 
-#define debugfln(fmt, ...) tf_network_util_debugfln("TFModbusTCPClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
+#define debugfln(fmt, ...) tf_network_debugfln("TFModbusTCPClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
 
 const char *get_tf_modbus_tcp_client_transaction_result_name(TFModbusTCPClientTransactionResult result)
 {

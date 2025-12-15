@@ -17,14 +17,14 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include "TFNetworkUtil.h"
+#include "TFNetwork.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <lwip/sockets.h>
 
-const char *TFNetworkUtil::printf_safe(const char *string)
+const char *TFNetwork::printf_safe(const char *string)
 {
     return string != nullptr ? string : "[nullptr]";
 }
@@ -35,9 +35,9 @@ static void vlogfln_dummy(const char *fmt, va_list args)
     (void)args;
 }
 
-TFNetworkUtilVLogFLnFunction TFNetworkUtil::vlogfln = vlogfln_dummy;
+TFNetworkVLogFLnFunction TFNetwork::vlogfln = vlogfln_dummy;
 
-void TFNetworkUtil::logfln(const char *fmt, ...)
+void TFNetwork::logfln(const char *fmt, ...)
 {
     va_list args;
 
@@ -46,23 +46,23 @@ void TFNetworkUtil::logfln(const char *fmt, ...)
     va_end(args);
 }
 
-static void resolve_dummy(const char *host, TFNetworkUtilResolveResultCallback &&callback)
+static void resolve_dummy(const char *host, TFNetworkResolveResultCallback &&callback)
 {
     (void)host;
 
     callback(0, ENOSYS);
 }
 
-TFNetworkUtilResolveFunction TFNetworkUtil::resolve = resolve_dummy;
+TFNetworkResolveFunction TFNetwork::resolve = resolve_dummy;
 
 static uint16_t get_random_uint16_dummy()
 {
     abort();
 }
 
-TFNetworkUtilGetRandomUint16Function TFNetworkUtil::get_random_uint16 = get_random_uint16_dummy;
+TFNetworkGetRandomUint16Function TFNetwork::get_random_uint16 = get_random_uint16_dummy;
 
-char *TFNetworkUtil::ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t address)
+char *TFNetwork::ipv4_ntoa(char *buffer, size_t buffer_length, uint32_t address)
 {
     if (buffer_length < 1) {
         return buffer;

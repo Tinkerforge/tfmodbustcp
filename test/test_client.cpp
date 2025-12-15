@@ -26,7 +26,7 @@
 #include <signal.h>
 #include <sys/random.h>
 #include <Arduino.h>
-#include "../src/TFNetworkUtil.h"
+#include "../src/TFNetwork.h"
 #include "../src/TFModbusTCPClient.h"
 #include "../src/TFModbusTCPClientPool.h"
 
@@ -50,21 +50,21 @@ void sigint_handler(int dummy)
 {
     (void)dummy;
 
-    TFNetworkUtil::logfln("received SIGINT");
+    TFNetwork::logfln("received SIGINT");
 
     running = false;
 }
 
 int main()
 {
-    TFNetworkUtil::vlogfln =
+    TFNetwork::vlogfln =
     [](const char *format, va_list args) {
         printf("%li | ", (int64_t)now_us());
         vprintf(format, args);
         puts("");
     };
 
-    TFNetworkUtil::get_random_uint16 =
+    TFNetwork::get_random_uint16 =
     []() {
         uint16_t r;
 
@@ -87,19 +87,19 @@ int main()
     micros_t next_read_time = -1_s;
     micros_t next_reconnect;
 
-    TFNetworkUtil::resolve =
+    TFNetwork::resolve =
     [&resolve_host, &resolve_callback](const char *host, std::function<void(uint32_t host_address, int error_number)> &&callback) {
         resolve_host = strdup(host);
         resolve_callback = std::move(callback);
     };
 
-    TFNetworkUtil::logfln(" connect...");
+    TFNetwork::logfln(" connect...");
     client.connect("localhost", 502,
     [&next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
-        TFNetworkUtil::logfln("connect 1st: %s / %s (%d)",
-                              get_tf_generic_tcp_client_connect_result_name(result),
-                              strerror(error_number),
-                              error_number);
+        TFNetwork::logfln("connect 1st: %s / %s (%d)",
+                          get_tf_generic_tcp_client_connect_result_name(result),
+                          strerror(error_number),
+                          error_number);
 
         if (result == TFGenericTCPClientConnectResult::Connected) {
             next_read_time = calculate_deadline(100_ms);
@@ -109,10 +109,10 @@ int main()
         }
     },
     [](TFGenericTCPClientDisconnectReason reason, int error_number) {
-        TFNetworkUtil::logfln("disconnect 1st: %s / %s (%d)",
-                              get_tf_generic_tcp_client_disconnect_reason_name(reason),
-                              strerror(error_number),
-                              error_number);
+        TFNetwork::logfln("disconnect 1st: %s / %s (%d)",
+                          get_tf_generic_tcp_client_disconnect_reason_name(reason),
+                          strerror(error_number),
+                          error_number);
 
         //running = false;
     });
@@ -139,7 +139,7 @@ int main()
         if (next_read_time >= 0_s && deadline_elapsed(next_read_time)) {
             next_read_time = -1_s;
 
-            TFNetworkUtil::logfln("read input registers...");
+            TFNetwork::logfln("read input registers...");
             client.transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, read_register_buffer, 1_s,
             [&read_register_buffer](TFModbusTCPClientTransactionResult result, const char *error_message) {
                 union {
@@ -150,76 +150,76 @@ int main()
                 c32.r[0] = read_register_buffer[0];
                 c32.r[1] = read_register_buffer[1];
 
-                TFNetworkUtil::logfln("read input registers: %s (%d)%s%s [%u %u -> %f]",
-                                      get_tf_modbus_tcp_client_transaction_result_name(result),
-                                      static_cast<int>(result),
-                                      error_message != nullptr ? " / " : "",
-                                      error_message != nullptr ? error_message : "",
-                                      c32.r[0],
-                                      c32.r[1],
-                                      static_cast<double>(c32.f));
+                TFNetwork::logfln("read input registers: %s (%d)%s%s [%u %u -> %f]",
+                                  get_tf_modbus_tcp_client_transaction_result_name(result),
+                                  static_cast<int>(result),
+                                  error_message != nullptr ? " / " : "",
+                                  error_message != nullptr ? error_message : "",
+                                  c32.r[0],
+                                  c32.r[1],
+                                  static_cast<double>(c32.f));
             });
 
-            TFNetworkUtil::logfln("read coils...");
+            TFNetwork::logfln("read coils...");
             client.transact(1, TFModbusTCPFunctionCode::ReadCoils, 122, 10, read_coil_buffer, 1_s,
             [&next_read_time, &read_coil_buffer](TFModbusTCPClientTransactionResult result, const char *error_message) {
-                TFNetworkUtil::logfln("read coils: %s (%d)%s%s [%u %u %u %u %u %u %u %u %u %u]",
-                                      get_tf_modbus_tcp_client_transaction_result_name(result),
-                                      static_cast<int>(result),
-                                      error_message != nullptr ? " / " : "",
-                                      error_message != nullptr ? error_message : "",
-                                      (read_coil_buffer[0] >> 0) & 1,
-                                      (read_coil_buffer[0] >> 1) & 1,
-                                      (read_coil_buffer[0] >> 2) & 1,
-                                      (read_coil_buffer[0] >> 3) & 1,
-                                      (read_coil_buffer[0] >> 4) & 1,
-                                      (read_coil_buffer[0] >> 5) & 1,
-                                      (read_coil_buffer[0] >> 6) & 1,
-                                      (read_coil_buffer[0] >> 7) & 1,
-                                      (read_coil_buffer[1] >> 0) & 1,
-                                      (read_coil_buffer[1] >> 1) & 1);
+                TFNetwork::logfln("read coils: %s (%d)%s%s [%u %u %u %u %u %u %u %u %u %u]",
+                                  get_tf_modbus_tcp_client_transaction_result_name(result),
+                                  static_cast<int>(result),
+                                  error_message != nullptr ? " / " : "",
+                                  error_message != nullptr ? error_message : "",
+                                  (read_coil_buffer[0] >> 0) & 1,
+                                  (read_coil_buffer[0] >> 1) & 1,
+                                  (read_coil_buffer[0] >> 2) & 1,
+                                  (read_coil_buffer[0] >> 3) & 1,
+                                  (read_coil_buffer[0] >> 4) & 1,
+                                  (read_coil_buffer[0] >> 5) & 1,
+                                  (read_coil_buffer[0] >> 6) & 1,
+                                  (read_coil_buffer[0] >> 7) & 1,
+                                  (read_coil_buffer[1] >> 0) & 1,
+                                  (read_coil_buffer[1] >> 1) & 1);
 
                 next_read_time = calculate_deadline(100_ms);
             });
 
             write_register_buffer = 5678;
 
-            TFNetworkUtil::logfln("write register...");
+            TFNetwork::logfln("write register...");
             client.transact(1, TFModbusTCPFunctionCode::WriteSingleRegister, 2233, 1, &write_register_buffer, 1_s,
             [](TFModbusTCPClientTransactionResult result, const char *error_message) {
-                TFNetworkUtil::logfln("write register: %s (%d)%s%s",
-                                      get_tf_modbus_tcp_client_transaction_result_name(result),
-                                      static_cast<int>(result),
-                                      error_message != nullptr ? " / " : "",
-                                      error_message != nullptr ? error_message : "");
+                TFNetwork::logfln("write register: %s (%d)%s%s",
+                                  get_tf_modbus_tcp_client_transaction_result_name(result),
+                                  static_cast<int>(result),
+                                  error_message != nullptr ? " / " : "",
+                                  error_message != nullptr ? error_message : "");
             });
 
             write_coil_buffer = 1;
 
-            TFNetworkUtil::logfln("write coil...");
+            TFNetwork::logfln("write coil...");
             client.transact(1, TFModbusTCPFunctionCode::WriteSingleCoil, 4567, 1, &write_coil_buffer, 1_s,
             [](TFModbusTCPClientTransactionResult result, const char *error_message) {
-                TFNetworkUtil::logfln("write coil: %s (%d)%s%s",
-                                      get_tf_modbus_tcp_client_transaction_result_name(result),
-                                      static_cast<int>(result),
-                                      error_message != nullptr ? " / " : "",
-                                      error_message != nullptr ? error_message : "");
+                TFNetwork::logfln("write coil: %s (%d)%s%s",
+                                  get_tf_modbus_tcp_client_transaction_result_name(result),
+                                  static_cast<int>(result),
+                                  error_message != nullptr ? " / " : "",
+                                  error_message != nullptr ? error_message : "");
             });
         }
 
         if (next_reconnect >= 0_s && deadline_elapsed(next_reconnect)) {
             next_reconnect = -1_s;
 
-            TFNetworkUtil::logfln("disconnect...");
+            TFNetwork::logfln("disconnect...");
             client.disconnect();
 
-            TFNetworkUtil::logfln("reconnect...");
+            TFNetwork::logfln("reconnect...");
             client.connect("localhost", 502,
             [&next_read_time](TFGenericTCPClientConnectResult result, int error_number) {
-                TFNetworkUtil::logfln("connect 2nd: %s / %s (%d)",
-                                      get_tf_generic_tcp_client_connect_result_name(result),
-                                      strerror(error_number),
-                                      error_number);
+                TFNetwork::logfln("connect 2nd: %s / %s (%d)",
+                                  get_tf_generic_tcp_client_connect_result_name(result),
+                                  strerror(error_number),
+                                  error_number);
 
                 if (result == TFGenericTCPClientConnectResult::Connected) {
                     next_read_time = calculate_deadline(100_ms);
@@ -229,10 +229,10 @@ int main()
                 }
             },
             [](TFGenericTCPClientDisconnectReason reason, int error_number) {
-                TFNetworkUtil::logfln("disconnect 2nd: %s / %s (%d)",
-                                      get_tf_generic_tcp_client_disconnect_reason_name(reason),
-                                      strerror(error_number),
-                                      error_number);
+                TFNetwork::logfln("disconnect 2nd: %s / %s (%d)",
+                                  get_tf_generic_tcp_client_disconnect_reason_name(reason),
+                                  strerror(error_number),
+                                  error_number);
 
                 //running = false;
             });

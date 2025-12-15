@@ -25,9 +25,9 @@
 #include <lwip/sockets.h>
 #include <algorithm>
 
-#include "TFNetworkUtil.h"
+#include "TFNetwork.h"
 
-#define debugfln(fmt, ...) tf_network_util_debugfln("TFModbusTCPServer[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
+#define debugfln(fmt, ...) tf_network_debugfln("TFModbusTCPServer[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
 
 const char *get_tf_modbus_tcp_server_client_disconnect_reason_name(TFModbusTCPServerDisconnectReason reason)
 {
@@ -66,8 +66,8 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
                               TFModbusTCPServerDisconnectCallback &&disconnect_callback,
                               TFModbusTCPServerRequestCallback &&request_callback)
 {
-    char bind_address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
-    TFNetworkUtil::ipv4_ntoa(bind_address_str, sizeof(bind_address_str), bind_address);
+    char bind_address_str[TF_NETWORK_IPV4_NTOA_BUFFER_LENGTH];
+    TFNetwork::ipv4_ntoa(bind_address_str, sizeof(bind_address_str), bind_address);
 
     if (non_reentrant) {
         debugfln("start(bind_address=%s port=%u) non-reentrant", bind_address_str, port);
@@ -76,7 +76,7 @@ bool TFModbusTCPServer::start(uint32_t bind_address, uint16_t port,
         return false;
     }
 
-    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+    TFNetwork::NonReentrantScope scope(&non_reentrant);
 
     debugfln("start(bind_address=%s port=%u)", bind_address_str, port);
 
@@ -186,7 +186,7 @@ bool TFModbusTCPServer::stop()
         return false;
     }
 
-    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+    TFNetwork::NonReentrantScope scope(&non_reentrant);
 
     if (server_fd < 0) {
         debugfln("stop() not running");
@@ -226,7 +226,7 @@ void TFModbusTCPServer::tick()
         return;
     }
 
-    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+    TFNetwork::NonReentrantScope scope(&non_reentrant);
 
     if (server_fd < 0) {
         return;
@@ -274,8 +274,8 @@ void TFModbusTCPServer::tick()
         uint32_t peer_address = addr_in.sin_addr.s_addr;
         uint16_t port         = ntohs(addr_in.sin_port);
 
-        char peer_address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
-        TFNetworkUtil::ipv4_ntoa(peer_address_str, sizeof(peer_address_str), peer_address);
+        char peer_address_str[TF_NETWORK_IPV4_NTOA_BUFFER_LENGTH];
+        TFNetwork::ipv4_ntoa(peer_address_str, sizeof(peer_address_str), peer_address);
 
         debugfln("tick() accepting connection (socket_fd=%d peer_address=%s port=%u)", socket_fd, peer_address_str, port);
         connect_callback(peer_address, port);

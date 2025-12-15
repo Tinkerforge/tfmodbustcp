@@ -25,9 +25,9 @@
 #include <sys/types.h>
 #include <lwip/sockets.h>
 
-#include "TFNetworkUtil.h"
+#include "TFNetwork.h"
 
-#define debugfln(fmt, ...) tf_network_util_debugfln("TFGenericTCPClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
+#define debugfln(fmt, ...) tf_network_debugfln("TFGenericTCPClient[%p]::" fmt, static_cast<void *>(this) __VA_OPT__(,) __VA_ARGS__)
 
 const char *get_tf_generic_tcp_client_connect_result_name(TFGenericTCPClientConnectResult result)
 {
@@ -202,31 +202,31 @@ void TFGenericTCPClient::connect(const char *host, uint16_t port,
                                  TFGenericTCPClientDisconnectCallback &&disconnect_callback)
 {
     if (!connect_callback) {
-        debugfln("connect(host=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host), port);
+        debugfln("connect(host=%s port=%u) invalid argument", TFNetwork::printf_safe(host), port);
         return;
     }
 
     if (non_reentrant) {
-        debugfln("connect(host=%s port=%u) non-reentrant", TFNetworkUtil::printf_safe(host), port);
+        debugfln("connect(host=%s port=%u) non-reentrant", TFNetwork::printf_safe(host), port);
         connect_callback(TFGenericTCPClientConnectResult::NonReentrant, -1);
         return;
     }
 
-    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+    TFNetwork::NonReentrantScope scope(&non_reentrant);
 
     if (host == nullptr || strlen(host) == 0 || port == 0 || !disconnect_callback) {
-        debugfln("connect(host=%s port=%u) invalid argument", TFNetworkUtil::printf_safe(host), port);
+        debugfln("connect(host=%s port=%u) invalid argument", TFNetwork::printf_safe(host), port);
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1);
         return;
     }
 
     if (this->host != nullptr) {
-        debugfln("connect(host=%s port=%u) already connected", TFNetworkUtil::printf_safe(host), port);
+        debugfln("connect(host=%s port=%u) already connected", TFNetwork::printf_safe(host), port);
         connect_callback(TFGenericTCPClientConnectResult::AlreadyConnected, -1);
         return;
     }
 
-    debugfln("connect(host=%s port=%u) pending", TFNetworkUtil::printf_safe(host), port);
+    debugfln("connect(host=%s port=%u) pending", TFNetwork::printf_safe(host), port);
 
     this->host                        = strdup(host);
     this->port                        = port;
@@ -238,11 +238,11 @@ void TFGenericTCPClient::connect(const char *host, uint16_t port,
 TFGenericTCPClientDisconnectResult TFGenericTCPClient::disconnect()
 {
     if (non_reentrant) {
-        debugfln("disconnect() non-reentrant (host=%s port=%u)", TFNetworkUtil::printf_safe(host), port);
+        debugfln("disconnect() non-reentrant (host=%s port=%u)", TFNetwork::printf_safe(host), port);
         return TFGenericTCPClientDisconnectResult::NonReentrant;
     }
 
-    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+    TFNetwork::NonReentrantScope scope(&non_reentrant);
 
     if (host == nullptr) {
         debugfln("disconnect() not connected");
@@ -291,7 +291,7 @@ void TFGenericTCPClient::tick()
         return;
     }
 
-    TFNetworkUtil::NonReentrantScope scope(&non_reentrant);
+    TFNetwork::NonReentrantScope scope(&non_reentrant);
 
     if (host == nullptr) {
         return;
@@ -306,10 +306,10 @@ void TFGenericTCPClient::tick()
 
             debugfln("tick() resolving (host=%s current_resolve_id=%u)", host, current_resolve_id);
 
-            TFNetworkUtil::resolve(host,
+            TFNetwork::resolve(host,
             [this, current_resolve_id](uint32_t address, int error_number) {
-                char address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
-                TFNetworkUtil::ipv4_ntoa(address_str, sizeof(address_str), address);
+                char address_str[TF_NETWORK_IPV4_NTOA_BUFFER_LENGTH];
+                TFNetwork::ipv4_ntoa(address_str, sizeof(address_str), address);
 
                 debugfln("tick() resolved (resolve_pending=%d current_resolve_id=%u resolve_id=%u address=%s error_number=%d)",
                          static_cast<int>(resolve_pending), current_resolve_id, resolve_id, address_str, error_number);
@@ -333,8 +333,8 @@ void TFGenericTCPClient::tick()
                 return; // Waiting for resolve callback
             }
 
-            char pending_host_address_str[TF_NETWORK_UTIL_IPV4_NTOA_BUFFER_LENGTH];
-            TFNetworkUtil::ipv4_ntoa(pending_host_address_str, sizeof(pending_host_address_str), pending_host_address);
+            char pending_host_address_str[TF_NETWORK_IPV4_NTOA_BUFFER_LENGTH];
+            TFNetwork::ipv4_ntoa(pending_host_address_str, sizeof(pending_host_address_str), pending_host_address);
 
             debugfln("tick() connecting (host=%s pending_host_address=%s)", host, pending_host_address_str);
             pending_socket_fd = socket(AF_INET, SOCK_STREAM, 0);

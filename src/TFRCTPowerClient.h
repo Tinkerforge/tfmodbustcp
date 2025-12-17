@@ -28,12 +28,6 @@
 #define TF_RCT_POWER_CLIENT_MAX_SCHEDULED_TRANSACTION_COUNT 8
 #endif
 
-struct TFRCTPowerValueSpec
-{
-    uint32_t id;
-    float scale_factor;
-};
-
 enum class TFRCTPowerClientTransactionResult
 {
     Success,
@@ -54,7 +48,7 @@ typedef std::function<void(TFRCTPowerClientTransactionResult result, float value
 
 struct TFRCTPowerClientTransaction
 {
-    const TFRCTPowerValueSpec *spec;
+    uint32_t id;
     micros_t timeout;
     TFRCTPowerClientTransactionCallback callback;
     TFRCTPowerClientTransaction *next;
@@ -65,7 +59,7 @@ class TFRCTPowerClient final : public TFGenericTCPClient
 public:
     TFRCTPowerClient() {}
 
-    void read(const TFRCTPowerValueSpec *spec, micros_t timeout, TFRCTPowerClientTransactionCallback &&callback);
+    void read(uint32_t id, micros_t timeout, TFRCTPowerClientTransactionCallback &&callback);
 
 private:
     void close_hook() override;
@@ -92,9 +86,9 @@ class TFRCTPowerSharedClient final : public TFGenericTCPSharedClient
 public:
     TFRCTPowerSharedClient(TFRCTPowerClient *client_) : TFGenericTCPSharedClient(client_), client(client_) {}
 
-    void read(const TFRCTPowerValueSpec *spec, micros_t timeout, TFRCTPowerClientTransactionCallback &&callback)
+    void read(uint32_t id, micros_t timeout, TFRCTPowerClientTransactionCallback &&callback)
     {
-        client->read(spec, timeout, std::move(callback));
+        client->read(id, timeout, std::move(callback));
     }
 
 private:

@@ -85,14 +85,14 @@ const char *get_tf_rct_power_client_transaction_result_name(TFRCTPowerClientTran
     return "<Unknown>";
 }
 
-void TFRCTPowerClient::read(const TFRCTPowerValueSpec *spec, micros_t timeout, TFRCTPowerClientTransactionCallback &&callback)
+void TFRCTPowerClient::read(uint32_t id, micros_t timeout, TFRCTPowerClientTransactionCallback &&callback)
 {
     if (!callback) {
         debugfln("callback=nullptr");
         return;
     }
 
-    if (spec == nullptr || timeout < 0_s) {
+    if (timeout < 0_s) {
         callback(TFRCTPowerClientTransactionResult::InvalidArgument, NAN);
         return;
     }
@@ -117,7 +117,7 @@ void TFRCTPowerClient::read(const TFRCTPowerValueSpec *spec, micros_t timeout, T
 
     TFRCTPowerClientTransaction *transaction = new TFRCTPowerClientTransaction;
 
-    transaction->spec     = spec;
+    transaction->id       = id;
     transaction->timeout  = timeout;
     transaction->callback = std::move(callback);
     transaction->next     = nullptr;
@@ -149,10 +149,10 @@ void TFRCTPowerClient::tick_hook()
 
         request[0] = 1; // command: read
         request[1] = 4; // length
-        request[2] = (uint8_t)((pending_transaction->spec->id >> 24) & 0xFF);
-        request[3] = (uint8_t)((pending_transaction->spec->id >> 16) & 0xFF);
-        request[4] = (uint8_t)((pending_transaction->spec->id >>  8) & 0xFF);
-        request[5] = (uint8_t)((pending_transaction->spec->id >>  0) & 0xFF);
+        request[2] = (uint8_t)((pending_transaction->id >> 24) & 0xFF);
+        request[3] = (uint8_t)((pending_transaction->id >> 16) & 0xFF);
+        request[4] = (uint8_t)((pending_transaction->id >>  8) & 0xFF);
+        request[5] = (uint8_t)((pending_transaction->id >>  0) & 0xFF);
 
         uint32_t checksum = crc16ccitt(request, 6);
 
@@ -254,7 +254,7 @@ bool TFRCTPowerClient::receive_hook()
                   ((uint32_t)pending_response[4] <<  8) |
                   ((uint32_t)pending_response[5] <<  0);
 
-    if (pending_transaction == nullptr || pending_transaction->spec->id != id) {
+    if (pending_transaction == nullptr || pending_transaction->id != id) {
         reset_pending_response();
         return true;
     }
@@ -283,17 +283,10 @@ bool TFRCTPowerClient::receive_hook()
     u.bytes[2] = pending_response[6 + 1];
     u.bytes[3] = pending_response[6 + 0];
 
-    float value = u.value;
-
-    if (value != 0.0f) { // Really compare exactly with 0.0f
-        // Don't convert 0.0f into -0.0f if the scale factor is negative
-        value *= pending_transaction->spec->scale_factor;
-    }
-
-    debugfln("Received response for ID 0x%08x with value %f [%f]", id, u.value, value);
+    debugfln("Received response for ID 0x%08x with value %f", id, u.value);
 
     reset_pending_response();
-    finish_pending_transaction(TFRCTPowerClientTransactionResult::Success, value);
+    finish_pending_transaction(TFRCTPowerClientTransactionResult::Success, u.value);
     return true;
 }
 

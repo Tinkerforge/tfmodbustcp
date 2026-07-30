@@ -160,8 +160,8 @@ bool TFModbusTCPServer::start(ip_addr_t *bind_address, uint16_t port,
 
     struct sockaddr_in addr_in;
     struct sockaddr_in6 addr_in6;
-    struct sockaddr *addr;
-    socklen_t addr_len;
+    struct sockaddr *addr = nullptr;
+    socklen_t addr_len = 0;
 
     if (bind_address->type == IPADDR_TYPE_V4) {
         memset(&addr_in, 0, sizeof(addr_in));

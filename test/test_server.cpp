@@ -64,13 +64,20 @@ int main()
 
     TFModbusTCPServer server(TFModbusTCPByteOrder::Host);
 
-    server.start(0, 502,
-    [](uint32_t peer_address, uint16_t port) {
-        TFNetwork::logfln("connected peer_address=%u port=%u", peer_address, port);
+    ip_addr_t bind_address;
+    ip_addr_set_any(bind_address);
+
+    server.start(&bind_address, 502,
+    [](const ip_addr_t *peer_address, uint16_t port) {
+        char address_str[TF_NETWORK_IP_ADDR_NTOA_BUFFER_LENGTH];
+        TFNetwork::ip_addr_ntoa(address_str, sizeof(address_str), const_cast<ip_addr_t *>(peer_address));
+        TFNetwork::logfln("connected peer_address=%s port=%u", address_str, port);
     },
-    [](uint32_t peer_address, uint16_t port, TFModbusTCPServerDisconnectReason reason, int error_number) {
-        TFNetwork::logfln("disconnected peer_address=%u port=%u reason=%s error_number=%d",
-                          peer_address,
+    [](const ip_addr_t *peer_address, uint16_t port, TFModbusTCPServerDisconnectReason reason, int error_number) {
+        char address_str[TF_NETWORK_IP_ADDR_NTOA_BUFFER_LENGTH];
+        TFNetwork::ip_addr_ntoa(address_str, sizeof(address_str), const_cast<ip_addr_t *>(peer_address));
+        TFNetwork::logfln("disconnected peer_address=%s port=%u reason=%s error_number=%d",
+                          address_str,
                           port,
                           get_tf_modbus_tcp_server_client_disconnect_reason_name(reason),
                           error_number);

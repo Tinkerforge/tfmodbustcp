@@ -65,14 +65,16 @@ int main()
     };
 
     TFNetwork::resolve =
-    [](const char *host, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+    [](const char *host, std::function<void(ip_addr_t *address, int error_number)> &&callback) {
         hostent *result = gethostbyname(host);
 
         if (result == nullptr) {
-            callback(0, h_errno);
+            callback(nullptr, h_errno);
         }
         else {
-            callback(((struct in_addr *)result->h_addr)->s_addr, 0);
+            ip_addr_t address;
+            ip_addr_set_ip4_u32_val(address, ((struct in_addr *)result->h_addr)->s_addr);
+            callback(&address, 0);
         }
     };
 

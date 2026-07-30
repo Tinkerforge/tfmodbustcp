@@ -82,13 +82,13 @@ int main()
     uint8_t read_coil_buffer[2] = {0, 0};
     uint8_t write_coil_buffer;
     char *resolve_host = nullptr;
-    std::function<void(uint32_t host_address, int error_number)> resolve_callback;
+    std::function<void(ip_addr_t *address, int error_number)> resolve_callback;
     TFModbusTCPClient client(TFModbusTCPByteOrder::Host);
     micros_t next_read_time = -1_s;
     micros_t next_reconnect;
 
     TFNetwork::resolve =
-    [&resolve_host, &resolve_callback](const char *host, std::function<void(uint32_t host_address, int error_number)> &&callback) {
+    [&resolve_host, &resolve_callback](const char *host, std::function<void(ip_addr_t *address, int error_number)> &&callback) {
         resolve_host = strdup(host);
         resolve_callback = std::move(callback);
     };
@@ -127,12 +127,14 @@ int main()
             resolve_host = nullptr;
 
             if (result == nullptr) {
-                resolve_callback(0, h_errno);
+                resolve_callback(nullptr, h_errno);
                 resolve_callback = nullptr;
                 continue;
             }
 
-            resolve_callback(((struct in_addr *)result->h_addr)->s_addr, 0);
+            ip_addr_t address;
+            ip_addr_set_ip4_u32_val(address, ((struct in_addr *)result->h_addr)->s_addr);
+            resolve_callback(&address, 0);
             resolve_callback = nullptr;
         }
 

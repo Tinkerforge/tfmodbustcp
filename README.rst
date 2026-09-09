@@ -1,5 +1,5 @@
-tfmodbustcp
-===========
+tfnetwork
+=========
 
 Modbus TCP server and client implementation used by the firmware of
 WARP Charger and WARP Energy Manager.

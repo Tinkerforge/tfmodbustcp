@@ -245,6 +245,7 @@ int main()
     }
 
     client.disconnect();
+    pool.tick();
 
     return 0;
 }

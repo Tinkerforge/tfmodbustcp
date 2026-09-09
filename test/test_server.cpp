@@ -68,7 +68,7 @@ int main()
     ip_addr_set_any(bind_address);
 
     TFNetwork::logfln("start...");
-    server.start(&bind_address, 502,
+    bool started = server.start(&bind_address, 502,
     [](const ip_addr_t *peer_address, uint16_t port) {
         char address_str[TF_NETWORK_IP_ADDR_NTOA_BUFFER_LENGTH];
         TFNetwork::ip_addr_ntoa(address_str, sizeof(address_str), const_cast<ip_addr_t *>(peer_address));
@@ -165,12 +165,16 @@ int main()
         return TFModbusTCPExceptionCode::ForceTimeout;
     });
 
-    while (running) {
-        server.tick();
-        usleep(100);
-    }
+    if (started) {
+        while (running) {
+            server.tick();
+            usleep(100);
+        }
 
-    server.stop();
+        TFNetwork::logfln("stop...");
+        server.stop();
+        server.tick();
+    }
 
     return 0;
 }

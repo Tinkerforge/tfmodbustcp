@@ -42,7 +42,7 @@ const char *get_tf_generic_tcp_client_pool_share_level_name(TFGenericTCPClientPo
 }
 
 // non-reentrant
-void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
+void TFGenericTCPClientPool::acquire(const char *host, uint16_t port, TFGenericTCPSharedClient **shared_client_ptr,
                                      TFGenericTCPClientPoolConnectCallback &&connect_callback,
                                      TFGenericTCPClientPoolDisconnectCallback &&disconnect_callback)
 {
@@ -59,21 +59,21 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
     TFNetwork::NonReentrantScope scope(&non_reentrant);
 
-    if (host == nullptr || strlen(host) == 0 || port == 0 || !disconnect_callback) {
-        debugfln("acquire(host=%s port=%u) invalid argument", TFNetwork::printf_safe(host), port);
+    if (host == nullptr || strlen(host) == 0 || port == 0 || *shared_client_ptr != nullptr || !disconnect_callback) {
+        debugfln("acquire(host=%s port=%u shared_client_ptr=%p) invalid argument", TFNetwork::printf_safe(host), port, static_cast<void *>(shared_client_ptr));
         connect_callback(TFGenericTCPClientConnectResult::InvalidArgument, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
         return;
     }
 
     debugfln("acquire(host=%s port=%u)", host, port);
 
-    ssize_t slot_index = -1;
+    size_t slot_index = SIZE_MAX;
 
     for (size_t i = 0; i < TF_GENERIC_TCP_CLIENT_POOL_MAX_SLOT_COUNT; ++i) {
         TFGenericTCPClientPoolSlot *slot = slots[i];
 
         if (slot == nullptr) {
-            if (slot_index < 0) {
+            if (slot_index == SIZE_MAX) {
                 slot_index = i;
             }
 
@@ -81,7 +81,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
         }
 
         if (slot->delete_pending) {
-            if (slot_index < 0 || slots[slot_index] == nullptr) {
+            if (slot_index == SIZE_MAX || slots[slot_index] == nullptr) {
                 slot_index = i;
             }
 
@@ -92,7 +92,7 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
                  host, port, i, static_cast<void *>(slot->client), slot->client->get_host(), slot->client->get_port());
 
         if (strcmp(slot->client->get_host(), host) == 0 && slot->client->get_port() == port) {
-            ssize_t share_index = -1;
+            size_t share_index = SIZE_MAX;
 
             debugfln("acquire(host=%s port=%u) found matching existing slot (slot_index=%zu client=%p)",
                      host, port, i, static_cast<void *>(slot->client));
@@ -104,17 +104,18 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
                 }
             }
 
-            if (share_index < 0) {
+            if (share_index == SIZE_MAX) {
                 connect_callback(TFGenericTCPClientConnectResult::NoFreePoolShare, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
                 return;
             }
 
+            bool connected = slot->client->get_connection_status() == TFGenericTCPClientConnectionStatus::Connected;
+
             TFGenericTCPClientPoolShare *share = new TFGenericTCPClientPoolShare;
             share->shared_client = create_shared_client(slot->client);
 
-            if (slot->client->get_connection_status() == TFGenericTCPClientConnectionStatus::Connected) {
+            if (connected) {
                 share->disconnect_callback = std::move(disconnect_callback);
-                connect_callback(TFGenericTCPClientConnectResult::Connected, -1, share->shared_client, TFGenericTCPClientPoolShareLevel::Secondary);
             }
             else {
                 share->connect_callback = std::move(connect_callback);
@@ -123,11 +124,18 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
 
             slot->shares[share_index] = share;
             ++slot->share_count;
+
+            *shared_client_ptr = share->shared_client;
+
+            if (connected) {
+                connect_callback(TFGenericTCPClientConnectResult::Connected, -1, share->shared_client, TFGenericTCPClientPoolShareLevel::Secondary);
+            }
+
             return;
         }
     }
 
-    if (slot_index < 0) {
+    if (slot_index == SIZE_MAX) {
         connect_callback(TFGenericTCPClientConnectResult::NoFreePoolSlot, -1, nullptr, TFGenericTCPClientPoolShareLevel::Undefined);
         return;
     }
@@ -156,8 +164,11 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
     share->shared_client = create_shared_client(slot->client);
     share->connect_callback = std::move(connect_callback);
     share->pending_disconnect_callback = std::move(disconnect_callback);
+
     slot->shares[0] = share;
     ++slot->share_count;
+
+    *shared_client_ptr = share->shared_client;
 
     slot->client->connect(host, port,
     [this, slot_index](TFGenericTCPClientConnectResult result, int error_number) {
@@ -349,11 +360,20 @@ void TFGenericTCPClientPool::release(size_t slot_index, size_t share_index, TFGe
     slot->shares[share_index] = nullptr;
     --slot->share_count;
 
+    TFGenericTCPClientPoolConnectCallback connect_callback       = std::move(share->connect_callback);
     TFGenericTCPClientPoolDisconnectCallback disconnect_callback = std::move(share->disconnect_callback);
+
+    share->connect_callback    = nullptr;
     share->disconnect_callback = nullptr;
 
-    if (disconnect_callback != nullptr) { // The disconnect callback is not optional, but it is not set until the connection is estabilshed
-        disconnect_callback(reason, error_number, share->shared_client, slot->share_count == 0 ? TFGenericTCPClientPoolShareLevel::Primary : TFGenericTCPClientPoolShareLevel::Secondary);
+    TFGenericTCPClientPoolShareLevel share_level = slot->share_count == 0 ? TFGenericTCPClientPoolShareLevel::Primary : TFGenericTCPClientPoolShareLevel::Secondary;
+
+    if (connect_callback) { // The connect callback is not optional, but it is cleared after the connection is estabilshed
+        connect_callback(TFGenericTCPClientConnectResult::AbortRequested, -1, share->shared_client, share_level);
+    }
+
+    if (disconnect_callback) { // The disconnect callback is not optional, but it is not set until the connection is estabilshed
+        disconnect_callback(reason, error_number, share->shared_client, share_level);
     }
 
     delete share->shared_client;

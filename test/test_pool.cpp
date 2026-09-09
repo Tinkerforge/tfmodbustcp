@@ -100,7 +100,7 @@ int main()
     micros_t next_reconnect;
 
     TFNetwork::logfln("acquire1...");
-    pool.acquire("localhost", 502,
+    pool.acquire("localhost", 502, &client_ptr1,
     [&client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
         TFNetwork::logfln("connect1 1st: client=%p level=%s: %s / %s (%d)",
                           static_cast<void *>(client),
@@ -150,7 +150,7 @@ int main()
     });
 
     TFNetwork::logfln("acquire2...");
-    pool.acquire("localhost", 502,
+    pool.acquire("localhost", 502, &client_ptr2,
     [&client_ptr2, &buffer2](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
         TFNetwork::logfln("connect2: client=%p level=%s: %s / %s (%d)",
                           static_cast<void *>(client),
@@ -210,7 +210,7 @@ int main()
             client_ptr1 = nullptr;
 
             TFNetwork::logfln("reacquire1...");
-            pool.acquire("localhost", 502,
+            pool.acquire("localhost", 502, &client_ptr1,
             [&client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
                 TFNetwork::logfln("connect1 2nd: client=%p level=%s: %s / %s (%d)",
                                   static_cast<void *>(client),

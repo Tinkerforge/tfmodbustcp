@@ -67,18 +67,18 @@ int main()
     ip_addr_t bind_address;
     ip_addr_set_any(bind_address);
 
+    TFNetwork::logfln("start...");
     server.start(&bind_address, 502,
     [](const ip_addr_t *peer_address, uint16_t port) {
         char address_str[TF_NETWORK_IP_ADDR_NTOA_BUFFER_LENGTH];
         TFNetwork::ip_addr_ntoa(address_str, sizeof(address_str), const_cast<ip_addr_t *>(peer_address));
-        TFNetwork::logfln("connected peer_address=%s port=%u", address_str, port);
+        TFNetwork::logfln("client connected: peer_address=%s port=%u", address_str, port);
     },
     [](const ip_addr_t *peer_address, uint16_t port, TFModbusTCPServerDisconnectReason reason, int error_number) {
         char address_str[TF_NETWORK_IP_ADDR_NTOA_BUFFER_LENGTH];
         TFNetwork::ip_addr_ntoa(address_str, sizeof(address_str), const_cast<ip_addr_t *>(peer_address));
-        TFNetwork::logfln("disconnected peer_address=%s port=%u reason=%s error_number=%d",
-                          address_str,
-                          port,
+        TFNetwork::logfln("client disconnected: peer_address=%s port=%u reason=%s error_number=%d",
+                          address_str, port,
                           get_tf_modbus_tcp_server_client_disconnect_reason_name(reason),
                           error_number);
     },

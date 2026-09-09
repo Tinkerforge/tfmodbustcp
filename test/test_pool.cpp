@@ -74,6 +74,7 @@ int main()
         else {
             ip_addr_t address;
             ip_addr_set_ip4_u32_val(address, ((struct in_addr *)result->h_addr)->s_addr);
+
             callback(&address, 0);
         }
     };
@@ -100,8 +101,8 @@ int main()
 
     TFNetwork::logfln("acquire1...");
     pool.acquire("localhost", 502,
-    [&pool, &client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
-        TFNetwork::logfln("connect1 1st client=%p level=%s: %s / %s (%d)",
+    [&client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+        TFNetwork::logfln("connect1 1st: client=%p level=%s: %s / %s (%d)",
                           static_cast<void *>(client),
                           get_tf_generic_tcp_client_pool_share_level_name(level),
                           get_tf_generic_tcp_client_connect_result_name(result),
@@ -117,7 +118,7 @@ int main()
 
         TFNetwork::logfln("read1... client=%p", static_cast<void *>(client));
         static_cast<TFModbusTCPSharedClient *>(client)->transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, buffer1, 1_s,
-        [&pool, client, &buffer1](TFModbusTCPClientTransactionResult result, const char *error_message) {
+        [&buffer1](TFModbusTCPClientTransactionResult result, const char *error_message) {
             union {
                 float f;
                 uint16_t r[2];
@@ -137,7 +138,7 @@ int main()
         });
     },
     [&client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
-        TFNetwork::logfln("disconnect1 1st client=%p level=%s: %s / %s (%d)",
+        TFNetwork::logfln("disconnect1 1st: client=%p level=%s: %s / %s (%d)",
                           static_cast<void *>(client),
                           get_tf_generic_tcp_client_pool_share_level_name(level),
                           get_tf_generic_tcp_client_disconnect_reason_name(reason),
@@ -150,8 +151,8 @@ int main()
 
     TFNetwork::logfln("acquire2...");
     pool.acquire("localhost", 502,
-    [&pool, &client_ptr2, &buffer2](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
-        TFNetwork::logfln("connect2 client=%p level=%s: %s / %s (%d)",
+    [&client_ptr2, &buffer2](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+        TFNetwork::logfln("connect2: client=%p level=%s: %s / %s (%d)",
                           static_cast<void *>(client),
                           get_tf_generic_tcp_client_pool_share_level_name(level),
                           get_tf_generic_tcp_client_connect_result_name(result),
@@ -167,7 +168,7 @@ int main()
 
         TFNetwork::logfln("read2... client=%p", static_cast<void *>(client));
         static_cast<TFModbusTCPSharedClient *>(client)->transact(1, TFModbusTCPFunctionCode::ReadInputRegisters, 1013, 2, buffer2, 1_s,
-        [&pool, &buffer2](TFModbusTCPClientTransactionResult result, const char *error_message) {
+        [&buffer2](TFModbusTCPClientTransactionResult result, const char *error_message) {
             union {
                 float f;
                 uint16_t r[2];
@@ -187,7 +188,7 @@ int main()
         });
     },
     [&client_ptr2](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
-        TFNetwork::logfln("disconnect2 client=%p level=%s: %s / %s (%d)",
+        TFNetwork::logfln("disconnect2: client=%p level=%s: %s / %s (%d)",
                           static_cast<void *>(client),
                           get_tf_generic_tcp_client_pool_share_level_name(level),
                           get_tf_generic_tcp_client_disconnect_reason_name(reason),
@@ -210,8 +211,8 @@ int main()
 
             TFNetwork::logfln("reacquire1...");
             pool.acquire("localhost", 502,
-            [&pool, &client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
-                TFNetwork::logfln("connect1 2nd client=%p level=%s: %s / %s (%d)",
+            [&client_ptr1, &buffer1](TFGenericTCPClientConnectResult result, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
+                TFNetwork::logfln("connect1 2nd: client=%p level=%s: %s / %s (%d)",
                                   static_cast<void *>(client),
                                   get_tf_generic_tcp_client_pool_share_level_name(level),
                                   get_tf_generic_tcp_client_connect_result_name(result),
@@ -221,7 +222,7 @@ int main()
                 client_ptr1 = client;
             },
             [&client_ptr1](TFGenericTCPClientDisconnectReason reason, int error_number, TFGenericTCPSharedClient *client, TFGenericTCPClientPoolShareLevel level) {
-                TFNetwork::logfln("disconnect1 2nd client=%p level=%s: %s / %s (%d)",
+                TFNetwork::logfln("disconnect1 2nd: client=%p level=%s: %s / %s (%d)",
                                   static_cast<void *>(client),
                                   get_tf_generic_tcp_client_pool_share_level_name(level),
                                   get_tf_generic_tcp_client_disconnect_reason_name(reason),

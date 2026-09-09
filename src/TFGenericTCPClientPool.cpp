@@ -200,10 +200,6 @@ void TFGenericTCPClientPool::acquire(const char *host, uint16_t port,
     [this, slot_index](TFGenericTCPClientDisconnectReason reason, int error_number) {
         TFGenericTCPClientPoolSlot *slot = slots[slot_index];
 
-        if (slot->delete_pending) {
-            return;
-        }
-
         debugfln("acquire(...) disconnected (reason=%s error_number=%d slot_index=%zu slot=%p)",
                  get_tf_generic_tcp_client_disconnect_reason_name(reason), error_number,
                  slot_index, static_cast<void *>(slot));
